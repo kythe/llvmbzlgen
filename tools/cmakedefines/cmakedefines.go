@@ -48,6 +48,7 @@ var (
 	varMap       = &cmakeDefines{}
 )
 
+// UnmarshalJSON implements the json.Unmarshaler interface for cmakeValue.
 func (cv *cmakeValue) UnmarshalJSON(data []byte) error {
 	var i interface{}
 	json.Unmarshal(data, &i)
