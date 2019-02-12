@@ -58,7 +58,7 @@ of your first [Pull Request][].
 For more information on contributing, see
 [https://kythe.io/contributing](https://kythe.io/contributing).
 
-[Issue]: https://github.com/kythe/kythe/issues
-[Pull Request]: https://github.com/kythe/kythe/pulls
+[Issue]: https://github.com/kythe/llvmbzlgen/issues
+[Pull Request]: https://github.com/kythe/llvmbzlgen/pulls
 [forking]: https://help.github.com/articles/fork-a-repo
 [well-formed commit messages]: http://tbaggery.com/2008/04/19/a-note-about-git-commit-messages.html
