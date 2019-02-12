@@ -64,7 +64,8 @@ scan:
 	return l.prev, err
 }
 
-// bufferTokens updates the buffer, clears tok and returns the first buffered token or error.
+// bufferTokens updates the buffer and returns the first buffered token or error.
+// If done is true or there is an error, clears the combining token.
 func (l *filterLexer) bufferTokens(toks []lexer.Token, done bool, err error) (lexer.Token, error) {
 	if done || err != nil {
 		l.prev = lexer.Token{}
@@ -80,6 +81,7 @@ func (l *filterLexer) bufferTokens(toks []lexer.Token, done bool, err error) (le
 // combineBracketContent merges tokens from the lexer until it encounters
 // a BracketClose token with a value equal to hdrlen, EOF or an error.
 // The terminating bracket is included in the returned value.
+// Returns a slice of the accumulated tokens, whether or not the terminal token was found and any errors encountered.
 func combineBracketContent(l lexer.Lexer, hdrlen int) ([]lexer.Token, bool, error) {
 	var toks []lexer.Token
 	for {
@@ -106,6 +108,7 @@ func combineBracketContent(l lexer.Lexer, hdrlen int) ([]lexer.Token, bool, erro
 
 // combineQuotedContent reads tokens until it encounters a double-quote or error, merging
 // as appropriate.
+// Returns a slice of the accumulated tokens, whether or not the terminal token was found and any errors encountered.
 func combineQuotedContent(l lexer.Lexer) ([]lexer.Token, bool, error) {
 	var toks []lexer.Token
 	for {
@@ -134,6 +137,7 @@ func combineQuotedContent(l lexer.Lexer) ([]lexer.Token, bool, error) {
 }
 
 // consumeComment reads tokens until it encounters a newline, BracketOpen/BracketClose or EOF.
+// Returns a slice of the accumulated tokens, whether or not the terminal token was found and any errors encountered.
 func consumeComment(l lexer.Lexer) ([]lexer.Token, bool, error) {
 	for {
 		next, err := l.Next()
