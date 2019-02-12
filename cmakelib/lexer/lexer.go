@@ -77,15 +77,13 @@ var tokenDefs = []tokenDefinition{
 
 var (
 	eolBytes   = []byte("\n")
-	tokenSyms  map[string]rune
-	tokenNames map[rune]string
+	tokenSyms  = make(map[string]rune)
+	tokenNames = make(map[rune]string)
 	lexPattern *regexp.Regexp
 )
 
 func init() {
 	var parts []string
-	tokenSyms = make(map[string]rune)
-	tokenNames = make(map[rune]string)
 	for _, def := range tokenDefs {
 		if len(def.pat) > 0 {
 			parts = append(parts, fmt.Sprintf(`(?P<%s>%s)`, def.name, regexp.MustCompile(def.pat)))

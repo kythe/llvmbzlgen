@@ -42,6 +42,7 @@ func (l *filterLexer) Next() (lexer.Token, error) {
 	case Quote:
 		return l.bufferTokens(combineQuotedContent(l.l))
 	}
+scan:
 	for {
 		l.prev, err = l.l.Next()
 		if err != nil {
@@ -51,13 +52,12 @@ func (l *filterLexer) Next() (lexer.Token, error) {
 		case Comment:
 			l.prev, err = l.bufferTokens(consumeComment(l.l))
 			if err != nil || l.prev.Type == lexer.EOF {
-				goto done
+				break scan
 			}
 		default:
-			goto done
+			break scan
 		}
 	}
-done:
 	if err != nil {
 		l.prev = lexer.Token{}
 	}
@@ -79,6 +79,7 @@ func (l *filterLexer) bufferTokens(toks []lexer.Token, done bool, err error) (le
 
 // combineBracketContent merges tokens from the lexer until it encounters
 // a BracketClose token with a value equal to hdrlen, EOF or an error.
+// The terminating bracket is included in the returned value.
 func combineBracketContent(l lexer.Lexer, hdrlen int) ([]lexer.Token, bool, error) {
 	var toks []lexer.Token
 	for {
@@ -87,9 +88,7 @@ func combineBracketContent(l lexer.Lexer, hdrlen int) ([]lexer.Token, bool, erro
 			return toks, true, err
 		}
 		switch {
-		case next.Type == lexer.EOF:
-			fallthrough
-		case next.Type == BracketClose && len(next.Value) == hdrlen:
+		case next.Type == lexer.EOF, next.Type == BracketClose && len(next.Value) == hdrlen:
 			return append(toks, next), true, nil
 		case len(toks) == 0:
 			toks = append(toks, lexer.Token{
@@ -116,8 +115,7 @@ func combineQuotedContent(l lexer.Lexer) ([]lexer.Token, bool, error) {
 		}
 		switch next.Type {
 		case EscapeSequence, VarOpen, VarClose:
-			// TODO(shahms): When otherwise working return append(toks, next), false, nil
-			toks = append(toks, next)
+			return append(toks, next), false, nil
 		case Quote, lexer.EOF:
 			return append(toks, next), true, nil
 		default:

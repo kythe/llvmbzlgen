@@ -17,7 +17,7 @@ def llvmbzlgen_dependencies():
 
     maybe(
         go_repository,
-        name = "com_github_alecthomas_repr",
-        commit = "d37bc2a10ba1a7951e19dd5dc10f7d59b142d8d7",
-        importpath = "github.com/alecthomas/repr",
+        name = "com_github_google_go_cmp",
+        importpath = "github.com/google/go-cmp",
+        tag = "v0.2.0",
     )
