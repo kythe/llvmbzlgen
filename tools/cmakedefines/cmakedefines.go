@@ -93,6 +93,7 @@ func (vars *cmakeDefines) Defined(key string) bool {
 	return ok && len(value) > 0 && !falsePattern.MatchString(string(value))
 }
 
+// String implements the fmt.Stringer interface for cmakeDefines by returning the value as a marshaled JSON string.
 func (vars *cmakeDefines) String() string {
 	bytes, err := json.Marshal(vars)
 	if err != nil {
