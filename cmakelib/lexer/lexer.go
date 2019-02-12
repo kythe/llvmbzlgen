@@ -30,6 +30,7 @@ import (
 	"github.com/alecthomas/participle/lexer"
 )
 
+// Constants defining the token types used by CMake
 const (
 	_ rune = lexer.EOF - iota
 	Space
