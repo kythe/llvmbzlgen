@@ -93,7 +93,7 @@ func (a *BracketArgument) Eval(vars Bindings) []string {
 	return []string{a.Text}
 }
 
-// Eval recursively resolved variable references using vars and returns the result.
+// Eval recursively resolves variable references using vars and returns the result.
 func (v *VariableReference) Eval(vars Bindings) []string {
 	var name []string
 	for _, e := range v.Elements {
@@ -115,7 +115,7 @@ func (v *VariableReference) Eval(vars Bindings) []string {
 	return []string{get(strings.Join(name, ""))}
 }
 
-// Eval recursively resolved variable references using vars and returns the result.
+// Eval recursively resolves variable references using vars and returns the result.
 func (v *VariableElement) Eval(vars Bindings) []string {
 	parts := []string{v.Text}
 	if v.Ref != nil {
