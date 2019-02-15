@@ -98,6 +98,7 @@ func (sw *StarlarkWriter) PopDirectory() (string, error) {
 	return path, sw.writeString(sw.indentf("ctx = ctx.pop_directory(ctx)\n"))
 }
 
+// WriteCommand writes an invocation of the provided command and arguments.
 func (sw *StarlarkWriter) WriteCommand(cmd string, args ...string) error {
 	if sw.currentMacro == "" {
 		return errors.New("no current macro")
