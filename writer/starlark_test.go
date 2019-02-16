@@ -73,3 +73,37 @@ func TestCommandWriting(t *testing.T) {
 		t.Error("Unexpected writer output:\n", diff)
 	}
 }
+
+func TestInvalidMacroName(t *testing.T) {
+	var b strings.Builder
+	writer := NewStarlarkWriter(&b)
+	if err := writer.BeginMacro("spaces are bad"); err == nil {
+		t.Error("Invalid name accepted")
+	}
+}
+
+func TestInvalidCommandName(t *testing.T) {
+	var b strings.Builder
+	writer := NewStarlarkWriter(&b)
+	if err := writer.BeginMacro("hello_world"); err != nil {
+		t.Fatal("Unexpected error writing macro: ", err)
+	}
+	if err := writer.WriteCommand("space are bad"); err == nil {
+		t.Error("Invalid command name accepted")
+	}
+}
+
+func TestReservedWord(t *testing.T) {
+	var b strings.Builder
+	writer := NewStarlarkWriter(&b)
+	if err := writer.BeginMacro("return"); err != nil {
+		t.Fatal("Unexpected error writing macro: ", err)
+	}
+	if err := writer.EndMacro(); err != nil {
+		t.Fatal("Unpexpected error ending macro: ", err)
+	}
+	expected := "def return_(ctx):\n    pass\n"
+	if diff := cmp.Diff(expected, b.String()); diff != "" {
+		t.Error("Unexpected writer output:\n", diff)
+	}
+}

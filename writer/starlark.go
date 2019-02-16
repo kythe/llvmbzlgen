@@ -21,7 +21,22 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"regexp"
 	"strings"
+
+	"bitbucket.org/creachadair/stringset"
+)
+
+var (
+	validIdentPattern = regexp.MustCompile(`^[a-zA-Z_]\w*$`)
+	starlarkReserved  = stringset.New(
+		"if", "elif", "else", "assert",
+		"and", "or", "not", "in", "is", "as",
+		"for", "while", "break", "continue", "return", "yield", "pass",
+		"load", "import", "nonlocal", "global",
+		"def", "lambda", "class",
+		"del", "raise", "except", "try", "finally", "from", "with",
+	)
 )
 
 // StarlarkWriter is a simple type for writing basic Starlark macros with a consistent form.
@@ -35,13 +50,17 @@ type StarlarkWriter struct {
 
 // NewStarlarkWriter creates a new StarlarkWriter writing to the provided output.
 func NewStarlarkWriter(w io.Writer) *StarlarkWriter {
-	return &StarlarkWriter{bufio.NewWriter(w), nil, false, "", nil}
+	return &StarlarkWriter{w: bufio.NewWriter(w)}
 }
 
 // BeginMacro starts writing a new macro with the given name.
 func (sw *StarlarkWriter) BeginMacro(name string) error {
 	if sw.currentMacro != "" {
 		return errors.New("nested macros are not allowed")
+	}
+	name, err := identName(name)
+	if err != nil {
+		return err
 	}
 	sw.buf = append(sw.buf, fmt.Sprintf("def %s(ctx):\n", name))
 	sw.currentMacro = name
@@ -73,11 +92,11 @@ func (sw *StarlarkWriter) PushDirectory(path string) error {
 		return errors.New("no current macro")
 	}
 	sw.dirStack = append(sw.dirStack, path)
-	sw.buf = append(sw.buf, sw.enterString(path))
+	sw.buf = append(sw.buf, sw.pushDirString(path))
 	return nil
 }
 
-func (sw *StarlarkWriter) enterString(path string) string {
+func (sw *StarlarkWriter) pushDirString(path string) string {
 	return sw.indentf("ctx = ctx.push_directory(ctx, %#v)\n", path)
 }
 
@@ -91,7 +110,7 @@ func (sw *StarlarkWriter) PopDirectory() (string, error) {
 	}
 	path := pop(&sw.dirStack)
 	// Suppress enter/exit pairs which are otherwise empty.
-	if len(sw.buf) > 0 && sw.buf[len(sw.buf)-1] == sw.enterString(path) {
+	if len(sw.buf) > 0 && sw.buf[len(sw.buf)-1] == sw.pushDirString(path) {
 		sw.buf = sw.buf[:len(sw.buf)-1]
 		return path, nil
 	}
@@ -103,8 +122,11 @@ func (sw *StarlarkWriter) WriteCommand(cmd string, args ...string) error {
 	if sw.currentMacro == "" {
 		return errors.New("no current macro")
 	}
-	err := sw.writeBuffered()
+	cmd, err := identName(cmd)
 	if err != nil {
+		return err
+	}
+	if err := sw.writeBuffered(); err != nil {
 		return err
 	}
 	if err := sw.writeString(sw.indentf("ctx.%s(ctx", cmd)); err != nil {
@@ -143,4 +165,14 @@ func (sw *StarlarkWriter) writeBuffered() error {
 func pop(s *[]string) (x string) {
 	x, *s = (*s)[len(*s)-1], (*s)[:len(*s)-1]
 	return
+}
+
+func identName(ident string) (string, error) {
+	if !validIdentPattern.MatchString(ident) {
+		return "", fmt.Errorf("invalid Starlark identifier: %s", ident)
+	}
+	if starlarkReserved.Contains(ident) {
+		return ident + "_", nil
+	}
+	return ident, nil
 }
