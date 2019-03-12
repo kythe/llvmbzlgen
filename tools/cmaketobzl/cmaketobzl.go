@@ -31,16 +31,23 @@ import (
 	"github.com/kythe/llvmbzlgen/writer"
 )
 
+// blockCounter counts active blocks of the given name for matching
+// paired CMake commenads, e.g. if/endif
 type blockCounter struct {
 	begin string
 	end   string
 	count int
 }
 
-func NewCounter(begin string) *blockCounter {
+// newCounter returns a new blockCounter instance which counts
+// blocks delimited by begin and "end" + begin.
+func newCounter(begin string) *blockCounter {
 	return &blockCounter{begin, "end" + begin, 0}
 }
 
+// Count increments the internal counter if text matches the begin delimiter,
+// decrements it if it matches the end delimiter and returns true if text
+// matched a delimiter or the current count is greater than zero.
 func (bc *blockCounter) Count(text string) bool {
 	matched := true
 	if text == bc.begin {
@@ -53,13 +60,6 @@ func (bc *blockCounter) Count(text string) bool {
 	return matched || bc.count > 0
 }
 
-type options struct {
-	macroName   string
-	shouldPrint Predicate
-	shouldAdd   Predicate
-	excludePath Predicate
-}
-
 type eval struct {
 	p *ast.Parser
 	o options
@@ -69,27 +69,40 @@ type eval struct {
 	path []string
 }
 
-type Option func(*eval)
-type Predicate func(string) bool
+type options struct {
+	macroName   string
+	shouldPrint func(string) bool
+	shouldAdd   func(string) bool
+	excludePath func(string) bool
+}
 
-func PrintCommands(p Predicate) Option {
+// Option is a configuration option for the CMake evaluator.
+type Option func(*eval)
+
+// PrintCommands configures the evaluator to print commands on the StarlarkWriter for which the supplied predicate returns true.
+func PrintCommands(p func(string) bool) Option {
 	return func(e *eval) {
 		e.o.shouldPrint = p
 	}
 }
 
-func RecurseCommands(p Predicate) Option {
+// RecurseCommands configures the evaluator to recurse into the subdirectory
+// specified by the first argument to the command when the provided predicate returns true.
+// By default only "add_subdirectory" is handled this way.
+func RecurseCommands(p func(string) bool) Option {
 	return func(e *eval) {
 		e.o.shouldAdd = p
 	}
 }
 
-func ExcludePaths(p Predicate) Option {
+// ExcludePaths configures the evaluator to omit particular paths entirely during traversal.
+func ExcludePaths(p func(string) bool) Option {
 	return func(e *eval) {
 		e.o.excludePath = p
 	}
 }
 
+// DefineVars configures the evaluator to predefine the specified variables.
 func DefineVars(vars map[string]string) Option {
 	return func(e *eval) {
 		for k, v := range vars {
@@ -98,10 +111,12 @@ func DefineVars(vars map[string]string) Option {
 	}
 }
 
-func Matching(pat string) Predicate {
+// Matching compiles the provided pattern and returns a predicate for matching strings.
+func Matching(pat string) func(string) bool {
 	return regexp.MustCompile(pat).MatchString
 }
 
+// NewEvaluator returns a new CMake evaluator instance.
 func NewEvaluator(w io.Writer, opts ...Option) *eval {
 	e := &eval{
 		p: ast.NewParser(),
@@ -118,18 +133,22 @@ func NewEvaluator(w io.Writer, opts ...Option) *eval {
 	return e
 }
 
+// parse parses the provided input into a CMakeFile AST.
 func (e *eval) parse(input io.Reader) (*ast.CMakeFile, error) {
 	return e.p.Parse(input)
 }
 
+// parse parses the provided path into a CMakeFile AST.
 func (e *eval) parseFile(path string) (*ast.CMakeFile, error) {
-	if input, err := os.Open(path); err != nil {
+	input, err := os.Open(path)
+	if err != nil {
 		return nil, err
-	} else {
-		return e.parse(input)
 	}
+	defer input.Close()
+	return e.parse(input)
 }
 
+// walk evaluates all of the provided CMakeLists.txt files into the body of a single Starlark macro..
 func (e *eval) walk(paths []string) error {
 	if err := e.w.BeginMacro(e.o.macroName); err != nil {
 		return err
@@ -144,10 +163,14 @@ func (e *eval) walk(paths []string) error {
 	return e.w.EndMacro()
 }
 
-type dispatchFn func(*commandList) (dispatchFn, error)
+// dispatchFunc is a function which handles the current command, updates the
+// remaining list of commands and returns a dispatchFunc suitable for processing that remainder.
+type dispatchFunc func(*commandList) (dispatchFunc, error)
 
+// commandList is a slice of CMake CommandInvocation elements used for dispatch.
 type commandList []ast.CommandInvocation
 
+// Advance removes the top command from the list and returns true if there are more to process.
 func (l *commandList) Advance() bool {
 	if len(*l) > 0 {
 		*l = (*l)[1:]
@@ -156,6 +179,7 @@ func (l *commandList) Advance() bool {
 	return false
 }
 
+// Head returns the first command in the list, if any.
 func (l *commandList) Head() *ast.CommandInvocation {
 	if len(*l) > 0 {
 		return &(*l)[0]
@@ -163,29 +187,23 @@ func (l *commandList) Head() *ast.CommandInvocation {
 	return nil
 }
 
+// shouldPrint returns true if the command given by name should be included in the Starlark output.
 func (e *eval) shouldPrint(name string) bool {
-	if e.o.shouldPrint != nil {
-		return e.o.shouldPrint(name)
-	}
-	return false
-
+	return e.o.shouldPrint != nil && e.o.shouldPrint(name)
 }
 
+// shouldAdd retruns true if the command given by name should be recursed into.
 func (e *eval) shouldAdd(name string) bool {
-	if e.o.shouldAdd != nil {
-		return e.o.shouldAdd(name)
-	}
-	return false
+	return e.o.shouldAdd != nil && e.o.shouldAdd(name)
 }
 
+// excludePath returns true if the path given by dirpath should be skipped.
 func (e *eval) excludePath(dirpath string) bool {
-	if e.o.excludePath != nil {
-		return e.o.excludePath(dirpath)
-	}
-	return false
+	return e.o.excludePath != nil && e.o.excludePath(dirpath)
 }
 
-func (e *eval) dispatch(cmds *commandList) (dispatchFn, error) {
+// dispatch evaluates the next command from cmds and returns a new dispatchFunc for handling the remainder.
+func (e *eval) dispatch(cmds *commandList) (dispatchFunc, error) {
 	name := string(cmds.Head().Name)
 	if e.shouldPrint(name) {
 		e.PrintCommand(cmds.Head())
@@ -194,7 +212,7 @@ func (e *eval) dispatch(cmds *commandList) (dispatchFn, error) {
 	switch name {
 	// TODO(shahms): Actually process these.
 	case "if", "function", "foreach", "macro":
-		counter := NewCounter(name)
+		counter := newCounter(name)
 		for counter.Count(name) && cmds.Advance() {
 			name = string(cmds.Head().Name)
 		}
@@ -218,6 +236,7 @@ func (e *eval) dispatch(cmds *commandList) (dispatchFn, error) {
 	return e.dispatch, nil
 }
 
+// AddSubdirectory recurses into the directory specified by dirpath and evaluates the CMakeLists.txt contained therein.
 func (e *eval) AddSubdirectory(dirpath string) error {
 	if err := e.enterDirectory(dirpath); err != nil {
 		return err
@@ -242,10 +261,12 @@ func (e *eval) AddSubdirectory(dirpath string) error {
 	return e.exitDirectory(dirpath)
 }
 
+// CurrentDirectory returns the project-rooted path currently being traversed.
 func (e *eval) CurrentDirectory() string {
 	return "/" + path.Join(e.path[1:]...)
 }
 
+// enterDirectory pushes a new directory onto the stack, setting up necessary state, etc.
 func (e *eval) enterDirectory(dirpath string) error {
 	if err := e.w.PushDirectory(dirpath); err != nil {
 		return err
@@ -257,6 +278,7 @@ func (e *eval) enterDirectory(dirpath string) error {
 	return nil
 }
 
+// exitDirectory pops the most recently entered directory off the stack.
 func (e *eval) exitDirectory(path string) error {
 	e.v.Pop()
 	e.path = e.path[:len(e.path)-1]
@@ -267,12 +289,15 @@ func (e *eval) exitDirectory(path string) error {
 	return err
 }
 
+// PrintCommand writes the given command to the configured StarlarkWriter.
 func (e *eval) PrintCommand(command *ast.CommandInvocation) error {
 	return e.w.WriteCommand(string(command.Name), command.Arguments.Eval(e.v)...)
 }
 
+// Path is a slice of string segments, representing a filesystem path.
 type Path []string
 
+// Split cleans and splits the /-delimited filesystem path.
 func NewPath(s string) Path {
 	p := strings.Split(path.Clean(s), "/")
 	if p[0] == "" {
@@ -281,6 +306,7 @@ func NewPath(s string) Path {
 	return p
 }
 
+// LessThan provides lexicographical ordering of Paths.
 func (p Path) LessThan(o Path) bool {
 	switch {
 	case len(p) < len(o):
@@ -296,10 +322,13 @@ func (p Path) LessThan(o Path) bool {
 	return false
 }
 
+// String returns the proper "/"-delimited form of the path.
 func (p Path) String() string {
 	return path.Join([]string(p)...)
 }
 
+// SplitCommonRoot finds the longest command whole-segment prefix of the provided
+// path and returns that along with each path stripped of that prefix.
 func SplitCommonRoot(paths []string) (string, []string) {
 	var split []Path
 	for _, p := range paths {
@@ -312,6 +341,7 @@ func SplitCommonRoot(paths []string) (string, []string) {
 	return root.String(), paths
 }
 
+// LongestCommonPrefix returns the longest shared Path prefix of all of the paths.
 func LongestCommonPrefix(paths []Path) Path {
 	switch len(paths) {
 	case 0:

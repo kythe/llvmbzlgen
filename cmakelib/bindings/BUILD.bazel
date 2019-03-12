@@ -2,10 +2,7 @@ load("@io_bazel_rules_go//go:def.bzl", "go_library", "go_test")
 
 go_library(
     name = "go_default_library",
-    srcs = [
-        "bindings.go",
-        "stack.go",
-    ],
+    srcs = ["bindings.go"],
     importpath = "github.com/kythe/llvmbzlgen/cmakelib/bindings",
     visibility = ["//visibility:public"],
 )

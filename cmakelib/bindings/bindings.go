@@ -19,7 +19,7 @@ package bindings
 
 // Mapping is a stack of map[string]string for CMake variables.
 type Mapping struct {
-	vs *varStack
+	vs []map[string]string
 }
 
 // New returns a new, empty, variable stack.
@@ -31,27 +31,37 @@ func New() *Mapping {
 
 // Push pushes a new variable binding scope.
 func (m *Mapping) Push() {
-	m.vs = m.vs.Push()
+	m.vs = append(m.vs, make(map[string]string))
 }
 
 // Pop removes the most recently pushed scope.
 func (m *Mapping) Pop() {
-	m.vs = m.vs.p
+	m.vs = m.vs[0 : len(m.vs)-1]
 }
 
 // Set sets a key to a particular value in the current scope.
+// Setting a key to the empty string is equivalent to deleting it, in accordance with CMake semantics.
 func (m *Mapping) Set(key, value string) {
-	m.vs.Set(key, value)
+	m.vs[len(m.vs)-1][key] = value
 }
 
 // SetParent sets a key to a particular value in the parent scope.
+// Setting a key to the empty string is equivalent to deleting it, in accordance with CMake semantics.
 func (m *Mapping) SetParent(key, value string) {
-	m.vs.p.Set(key, value)
+	m.vs[len(m.vs)-2][key] = value
 }
 
 // Get looks from the current scope up to find the nearest value for key.
+// If they key is absent, returns the empty string.
+// This matches the semantics of CMake variable lookup.
 func (m *Mapping) Get(key string) string {
-	return m.vs.Get(key)
+	for i := len(m.vs) - 1; i >= 0; i-- {
+		val, ok := m.vs[i][key]
+		if ok {
+			return val
+		}
+	}
+	return ""
 }
 
 // GetCache returns the associated value from the variable cache (not implemented).
@@ -65,6 +75,17 @@ func (m *Mapping) GetEnv(key string) string {
 }
 
 // Values returns the currently set values as a map[string]string.
+// Keys set to the empty string will be omitted from the final map.
 func (m *Mapping) Values() map[string]string {
-	return m.vs.Values()
+	vals := make(map[string]string)
+	for _, v := range m.vs {
+		for key, val := range v {
+			if val == "" {
+				delete(vals, key)
+			} else {
+				vals[key] = val
+			}
+		}
+	}
+	return vals
 }
