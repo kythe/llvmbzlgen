@@ -17,6 +17,8 @@
 // Package bindings implements CMake-style variable bindings.
 package bindings
 
+import "log"
+
 // Mapping is a stack of map[string]string for CMake variables.
 type Mapping struct {
 	vs []map[string]string
@@ -42,13 +44,18 @@ func (m *Mapping) Pop() {
 // Set sets a key to a particular value in the current scope.
 // Setting a key to the empty string is equivalent to deleting it, in accordance with CMake semantics.
 func (m *Mapping) Set(key, value string) {
+	// Keep empty strings in the current scope as a tombstone to prevent searching in parent scopes.
 	m.vs[len(m.vs)-1][key] = value
 }
 
 // SetParent sets a key to a particular value in the parent scope.
 // Setting a key to the empty string is equivalent to deleting it, in accordance with CMake semantics.
 func (m *Mapping) SetParent(key, value string) {
-	m.vs[len(m.vs)-2][key] = value
+	if len(m.vs) <= 1 {
+		log.Println("Attempt to set ", key, "in PARENT_SCOPE at root")
+	} else {
+		m.vs[len(m.vs)-2][key] = value
+	}
 }
 
 // Get looks from the current scope up to find the nearest value for key.
@@ -61,7 +68,9 @@ func (m *Mapping) Get(key string) string {
 			return val
 		}
 	}
-	return ""
+	// From https://cmake.org/cmake/help/v3.3/manual/cmake-language.7.html#variables
+	// Variable references are looked up in the cache if not present in the current scope.
+	return m.GetCache(key)
 }
 
 // GetCache returns the associated value from the variable cache (not implemented).

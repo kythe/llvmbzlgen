@@ -1,8 +1,9 @@
 package bindings
 
 import (
-	"reflect"
 	"testing"
+
+	"github.com/google/go-cmp/cmp"
 )
 
 func TestStackedLookup(t *testing.T) {
@@ -27,13 +28,13 @@ func TestStackValues(t *testing.T) {
 		"HELLO": "WORLD",
 		"CHILD": "VALUE",
 	}
-	if actual := vars.Values(); !reflect.DeepEqual(expected, actual) {
-		t.Errorf("Expected %#v found %#v", expected, actual)
+	if diff := cmp.Diff(vars.Values(), expected); diff != "" {
+		t.Errorf("Unexpected diff: %#v", diff)
 	}
 	delete(expected, "CHILD")
 	vars.Pop()
-	if actual := vars.Values(); !reflect.DeepEqual(expected, actual) {
-		t.Errorf("Expected %#v found %#v", expected, actual)
+	if diff := cmp.Diff(vars.Values(), expected); diff != "" {
+		t.Errorf("Unexpected diff: %#v", diff)
 	}
 }
 
@@ -45,13 +46,29 @@ func TestOverrides(t *testing.T) {
 	expected := map[string]string{
 		"HELLO": "goodbye",
 	}
-	if actual := vars.Values(); !reflect.DeepEqual(expected, actual) {
-		t.Errorf("Expected %#v found %#v", expected, actual)
+	if diff := cmp.Diff(vars.Values(), expected); diff != "" {
+		t.Errorf("Unexpected diff: %#v", diff)
 	}
 	expected["HELLO"] = "world"
 	vars.Pop()
-	if actual := vars.Values(); !reflect.DeepEqual(expected, actual) {
-		t.Errorf("Expected %#v found %#v", expected, actual)
+	if diff := cmp.Diff(vars.Values(), expected); diff != "" {
+		t.Errorf("Unexpected diff: %#v", diff)
 	}
 
+}
+
+func TestOverridesDeletion(t *testing.T) {
+	vars := New()
+	vars.Set("HELLO", "world")
+	vars.Push()
+	vars.Set("HELLO", "")
+	expected := map[string]string{}
+	if diff := cmp.Diff(vars.Values(), expected); diff != "" {
+		t.Errorf("Unexpected diff: %#v", diff)
+	}
+	expected["HELLO"] = "world"
+	vars.Pop()
+	if diff := cmp.Diff(vars.Values(), expected); diff != "" {
+		t.Errorf("Unexpected diff: %#v", diff)
+	}
 }

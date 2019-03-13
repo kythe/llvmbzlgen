@@ -23,6 +23,7 @@ import (
 	"log"
 	"os"
 	"path"
+	"path/filepath"
 	"regexp"
 	"strings"
 
@@ -32,10 +33,10 @@ import (
 )
 
 // blockCounter counts active blocks of the given name for matching
-// paired CMake commenads, e.g. if/endif
+// paired CMake commands.
 type blockCounter struct {
-	begin string
-	end   string
+	begin string // The beginning command, e.g. "if"
+	end   string // The ending command, e.g. "endif"
 	count int
 }
 
@@ -81,25 +82,19 @@ type Option func(*eval)
 
 // PrintCommands configures the evaluator to print commands on the StarlarkWriter for which the supplied predicate returns true.
 func PrintCommands(p func(string) bool) Option {
-	return func(e *eval) {
-		e.o.shouldPrint = p
-	}
+	return func(e *eval) { e.o.shouldPrint = p }
 }
 
 // RecurseCommands configures the evaluator to recurse into the subdirectory
 // specified by the first argument to the command when the provided predicate returns true.
 // By default only "add_subdirectory" is handled this way.
 func RecurseCommands(p func(string) bool) Option {
-	return func(e *eval) {
-		e.o.shouldAdd = p
-	}
+	return func(e *eval) { e.o.shouldAdd = p }
 }
 
 // ExcludePaths configures the evaluator to omit particular paths entirely during traversal.
 func ExcludePaths(p func(string) bool) Option {
-	return func(e *eval) {
-		e.o.excludePath = p
-	}
+	return func(e *eval) { e.o.excludePath = p }
 }
 
 // DefineVars configures the evaluator to predefine the specified variables.
@@ -217,8 +212,10 @@ func (e *eval) dispatch(cmds *commandList) (dispatchFunc, error) {
 			name = string(cmds.Head().Name)
 		}
 		return e.dispatch, nil
-	// TODO(shahms): Support setting values.
 	case "set":
+		e.setVariable(cmds.Head().Arguments.Eval(e.v))
+	case "unset":
+		e.unsetVariable(cmds.Head().Arguments.Eval(e.v))
 	}
 
 	if e.shouldAdd(name) {
@@ -234,6 +231,42 @@ func (e *eval) dispatch(cmds *commandList) (dispatchFunc, error) {
 	}
 	cmds.Advance()
 	return e.dispatch, nil
+}
+
+// setVariable sets the value of the variable designated by the remained, following the rules of
+// https://cmake.org/cmake/help/v3.3/command/set.html#command:set
+func (e *eval) setVariable(args []string) {
+	if len(args) == 0 {
+		log.Println("Cannot set a variable without a name")
+		return
+	}
+	key, args := args[0], args[1:len(args)]
+	switch {
+	case len(args) > 0 && args[len(args)-1] == "PARENT_SCOPE":
+		e.v.SetParent(key, strings.Join(args[0:len(args)-1], ";"))
+		// When setting CACHE variables, the option can occur in either position -3 or -4 due to the optional FORCE parameter.
+	case len(args) >= 3 && args[len(args)-3] == "CACHE", len(args) >= 4 && args[len(args)-4] == "CACHE":
+		log.Println("Ignoring set of CACHE variable: ", key)
+	default:
+		e.v.Set(key, strings.Join(args, ";"))
+	}
+}
+
+// unsetVariable unsets the value of the variable designated by the remained, following the rules of
+// https://cmake.org/cmake/help/v3.3/command/set.html#command:unset
+func (e *eval) unsetVariable(args []string) {
+	switch {
+	case len(args) == 0:
+		log.Println("Cannot unset a variable without a name")
+	case len(args) == 1:
+		e.v.Set(args[0], "")
+	case len(args) == 2 && args[1] == "PARENT_SCOPE":
+		e.v.SetParent(args[0], "")
+	case len(args) == 2 && args[1] == "CACHE":
+		log.Println("Ignoring unset of CACHE variable: ", args[0])
+	default:
+		log.Println("Ignoring invalid unset command")
+	}
 }
 
 // AddSubdirectory recurses into the directory specified by dirpath and evaluates the CMakeLists.txt contained therein.
@@ -299,23 +332,21 @@ type Path []string
 
 // Split cleans and splits the /-delimited filesystem path.
 func NewPath(s string) Path {
-	p := strings.Split(path.Clean(s), "/")
+	p := strings.Split(filepath.ToSlash(path.Clean(s)), "/")
 	if p[0] == "" {
 		p[0] = "/"
 	}
 	return p
 }
 
-// LessThan provides lexicographical ordering of Paths.
+// LessThan provides lexicographic ordering of Paths.
 func (p Path) LessThan(o Path) bool {
-	switch {
-	case len(p) < len(o):
-		return true
-	case len(p) > len(o):
-		return false
-	}
-	for i := range p {
-		if p[i] != o[i] {
+	for i := 0; ; i++ {
+		if i >= len(p) {
+			return i < len(o)
+		} else if i >= len(o) {
+			return false
+		} else if p[i] != o[i] {
 			return p[i] < o[i]
 		}
 	}
