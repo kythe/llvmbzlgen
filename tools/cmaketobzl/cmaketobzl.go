@@ -23,12 +23,12 @@ import (
 	"log"
 	"os"
 	"path"
-	"path/filepath"
 	"regexp"
 	"strings"
 
 	"github.com/kythe/llvmbzlgen/cmakelib/ast"
 	"github.com/kythe/llvmbzlgen/cmakelib/bindings"
+	bzlpath "github.com/kythe/llvmbzlgen/tools/cmaketobzl/path"
 	"github.com/kythe/llvmbzlgen/writer"
 )
 
@@ -148,7 +148,7 @@ func (e *eval) walk(paths []string) error {
 	if err := e.w.BeginMacro(e.o.macroName); err != nil {
 		return err
 	}
-	root, paths := SplitCommonRoot(paths)
+	root, paths := bzlpath.SplitCommonRootString(paths)
 	e.path = append(e.path, root)
 	for _, p := range paths {
 		if err := e.AddSubdirectory(p); err != nil {
@@ -325,77 +325,6 @@ func (e *eval) exitDirectory(path string) error {
 // PrintCommand writes the given command to the configured StarlarkWriter.
 func (e *eval) PrintCommand(command *ast.CommandInvocation) error {
 	return e.w.WriteCommand(string(command.Name), command.Arguments.Eval(e.v)...)
-}
-
-// Path is a slice of string segments, representing a filesystem path.
-type Path []string
-
-// Split cleans and splits the /-delimited filesystem path.
-func NewPath(s string) Path {
-	p := strings.Split(filepath.ToSlash(path.Clean(s)), "/")
-	if p[0] == "" {
-		p[0] = "/"
-	}
-	return p
-}
-
-// LessThan provides lexicographic ordering of Paths.
-func (p Path) LessThan(o Path) bool {
-	for i := 0; ; i++ {
-		if i >= len(p) {
-			return i < len(o)
-		} else if i >= len(o) {
-			return false
-		} else if p[i] != o[i] {
-			return p[i] < o[i]
-		}
-	}
-	return false
-}
-
-// String returns the proper "/"-delimited form of the path.
-func (p Path) String() string {
-	return path.Join([]string(p)...)
-}
-
-// SplitCommonRoot finds the longest command whole-segment prefix of the provided
-// path and returns that along with each path stripped of that prefix.
-func SplitCommonRoot(paths []string) (string, []string) {
-	var split []Path
-	for _, p := range paths {
-		split = append(split, NewPath(p))
-	}
-	root := LongestCommonPrefix(split)
-	for i, p := range split {
-		paths[i] = p[len(root):].String()
-	}
-	return root.String(), paths
-}
-
-// LongestCommonPrefix returns the longest shared Path prefix of all of the paths.
-func LongestCommonPrefix(paths []Path) Path {
-	switch len(paths) {
-	case 0:
-		return nil
-	case 1:
-		return paths[0]
-	}
-	min, max := paths[0], paths[0]
-	for _, p := range paths[1:] {
-		switch {
-		case p.LessThan(min):
-			min = p
-		case max.LessThan(p):
-			max = p
-		}
-	}
-
-	for i := 0; i < len(min) && i < len(max); i++ {
-		if min[i] != max[i] {
-			return min[:i]
-		}
-	}
-	return min
 }
 
 func main() {
