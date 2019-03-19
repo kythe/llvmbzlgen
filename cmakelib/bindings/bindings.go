@@ -15,6 +15,7 @@
  */
 
 // Package bindings implements CMake-style variable bindings.
+// https://cmake.org/cmake/help/latest/manual/cmake-language.7.html#variables
 package bindings
 
 import "log"
@@ -68,7 +69,7 @@ func (m *Mapping) Get(key string) string {
 			return val
 		}
 	}
-	// From https://cmake.org/cmake/help/v3.3/manual/cmake-language.7.html#variables
+	// From https://cmake.org/cmake/help/latest/manual/cmake-language.7.html#variables
 	// Variable references are looked up in the cache if not present in the current scope.
 	return m.GetCache(key)
 }

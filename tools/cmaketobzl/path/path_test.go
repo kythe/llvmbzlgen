@@ -46,7 +46,27 @@ func TestStripCommonRoot(t *testing.T) {
 	for _, tc := range tests {
 		r := newResult(SplitCommonRootString(tc.paths))
 		if diff := cmp.Diff(r, tc.expected); diff != "" {
-			t.Errorf("Unexpected root %#v:\n%s", diff)
+			t.Errorf("Unexpected root %#v:\n%s", tc.paths, diff)
+		}
+	}
+}
+
+func TestLongestCommonPrefix(t *testing.T) {
+	type test struct {
+		input    []string
+		expected string
+	}
+	tests := []test{
+		{[]string{"a/b/c", "a/b", "a/c/b"}, "a"},
+		{[]string{"/a/b/c", "/a/b", "/a/c/b"}, "/a"},
+		{[]string{"a/bb/c", "a/b", "a/b/c"}, "a"},
+		{[]string{"a/c", "a/b", "b/c"}, ""},
+	}
+
+	for _, tc := range tests {
+		r := LongestCommonPrefix(ToPaths(tc.input)).String()
+		if diff := cmp.Diff(r, tc.expected); diff != "" {
+			t.Errorf("Unexpected preifx %#v:\n%s", tc.input, diff)
 		}
 	}
 }
