@@ -8,7 +8,7 @@ go_library(
     deps = [
         "//cmakelib/ast:go_default_library",
         "//cmakelib/bindings:go_default_library",
-        "//tools/cmaketobzl/path:go_default_library",
+        "//path:go_default_library",
         "//writer:go_default_library",
     ],
 )

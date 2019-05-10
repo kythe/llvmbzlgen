@@ -28,7 +28,7 @@ import (
 
 	"github.com/kythe/llvmbzlgen/cmakelib/ast"
 	"github.com/kythe/llvmbzlgen/cmakelib/bindings"
-	bzlpath "github.com/kythe/llvmbzlgen/tools/cmaketobzl/path"
+	bzlpath "github.com/kythe/llvmbzlgen/path"
 	"github.com/kythe/llvmbzlgen/writer"
 )
 

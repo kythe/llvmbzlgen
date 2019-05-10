@@ -2,8 +2,11 @@ load("@io_bazel_rules_go//go:def.bzl", "go_library", "go_test")
 
 go_library(
     name = "go_default_library",
-    srcs = ["path.go"],
-    importpath = "github.com/kythe/llvmbzlgen/tools/cmaketobzl/path",
+    srcs = [
+        "path.go",
+        "walker.go",
+    ],
+    importpath = "github.com/kythe/llvmbzlgen/path",
     visibility = ["//visibility:public"],
 )
 

@@ -19,12 +19,12 @@ def llvmbzlgen_dependencies():
         go_repository,
         name = "com_github_google_go_cmp",
         importpath = "github.com/google/go-cmp",
-        tag = "v0.2.0",
+        tag = "v0.3.0",
     )
 
     maybe(
         go_repository,
         name = "org_bitbucket_creachadair_stringset",
         importpath = "bitbucket.org/creachadair/stringset",
-        tag = "v0.0.3",
+        tag = "v0.0.5",
     )
