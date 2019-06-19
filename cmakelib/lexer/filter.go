@@ -103,7 +103,6 @@ func combineBracketContent(l lexer.Lexer, hdrlen int) ([]lexer.Token, bool, erro
 		}
 
 	}
-	return nil, true, nil
 }
 
 // combineQuotedContent reads tokens until it encounters a double-quote or error, merging
@@ -133,7 +132,6 @@ func combineQuotedContent(l lexer.Lexer) ([]lexer.Token, bool, error) {
 			}
 		}
 	}
-	return nil, true, nil
 }
 
 // consumeComment reads tokens until it encounters a newline, BracketOpen/BracketClose or EOF.

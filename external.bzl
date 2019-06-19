@@ -28,3 +28,17 @@ def llvmbzlgen_dependencies():
         importpath = "bitbucket.org/creachadair/stringset",
         tag = "v0.0.5",
     )
+
+    maybe(
+        go_repository,
+        name = "org_golang_x_xerrors",
+        importpath = "golang.org/x/xerrors",
+        commit = "3ee3066db522",
+    )
+
+    maybe(
+        go_repository,
+        name = "com_github_creachadair_ini",
+        importpath = "github.com/creachadair/ini",
+        commit = "4111943b8b9a7c51606133bf3dfbe85e4d17e057",
+    )

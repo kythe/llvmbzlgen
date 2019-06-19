@@ -75,10 +75,22 @@ func (p *Path) Append(elem ...Path) {
 	}
 }
 
+// AppendString appends additional string elements to the end of path.
+func (p *Path) AppendString(elem ...string) {
+	p.Append(ToPaths(elem)...)
+}
+
 // Join joins path and any number of additional elements, returning the result.
 func (p Path) Join(elem ...Path) Path {
 	root := p[:]
 	root.Append(elem...)
+	return root
+}
+
+// JoinString joins path and any number of additional string elements, returning the result.
+func (p Path) JoinString(elem ...string) Path {
+	root := p[:]
+	root.Append(ToPaths(elem)...)
 	return root
 }
 
