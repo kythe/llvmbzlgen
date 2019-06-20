@@ -133,12 +133,7 @@ func encodeMarshaler(b *bytes.Buffer, v reflect.Value) error {
 	if err != nil {
 		return err
 	}
-	return writeBytes(b, r)
-}
-
-func writeBytes(b *bytes.Buffer, value []byte) error {
-	_, err := b.Write(value)
-	return err
+	return writeString(b, string(r))
 }
 
 func writeString(b *bytes.Buffer, value string) error {

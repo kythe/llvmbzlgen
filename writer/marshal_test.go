@@ -6,7 +6,7 @@ import (
 
 type marsh struct{}
 
-func (m marsh) MarshalStarlark() ([]byte, error) {
+func (marsh) MarshalStarlark() ([]byte, error) {
 	return []byte("marshaled"), nil
 }
 
