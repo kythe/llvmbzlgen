@@ -43,7 +43,7 @@ func WalkPath(root Path, visit PathVisitor) error {
 		return err
 	}
 	for _, child := range children {
-		if err := WalkPath(root.Join(child), visit); err != nil {
+		if err := WalkPath(Join(root, child), visit); err != nil {
 			return err
 		}
 	}

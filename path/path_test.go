@@ -75,17 +75,29 @@ func TestPathJoin(t *testing.T) {
 	root := New("/a/b/c")
 	children := []Path{New("d"), New("e"), New("f")}
 	expected := New("/a/b/c/d/e/f")
-	if diff := cmp.Diff(Join(append([]Path{root}, children...)...), expected); diff != "" {
+	if diff := cmp.Diff(Join(root, children...), expected); diff != "" {
 		t.Errorf("Unexpected path:\n%s", diff)
 	}
 
-	if diff := cmp.Diff(root.Join(children...), expected); diff != "" {
-		t.Errorf("Unexpected path:\n%s", diff)
-	}
-
-	root.Append(children...)
+	root = Append(root, children...)
 	if diff := cmp.Diff(root, expected); diff != "" {
 		t.Errorf("Unexpected path:\n%s", diff)
+	}
+}
+
+func TestAbsolutePathJoin(t *testing.T) {
+	root := New("a")
+	tests := []struct {
+		value    []Path
+		expected Path
+	}{
+		{[]Path{New("/a")}, New("a/a")},
+		{[]Path{New("b"), New("/c")}, New("a/b/c")},
+	}
+	for _, test := range tests {
+		if diff := cmp.Diff(Join(root, test.value...), test.expected); diff != "" {
+			t.Errorf("Unexpected path:\n%s", diff)
+		}
 	}
 }
 

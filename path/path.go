@@ -29,7 +29,7 @@ type Path []string
 func New(s string) Path {
 	s = filepath.ToSlash(filepath.Clean(s))
 	switch {
-	case len(s) == 0:
+	case s == "", s == ".":
 		return nil
 	case s == "/":
 		return Path{"/"}
@@ -68,38 +68,35 @@ func (p Path) String() string {
 	return filepath.Join([]string(p)...)
 }
 
-// Append appends additional elements to the end of path.
-func (p *Path) Append(elem ...Path) {
-	for _, e := range elem {
-		*p = append(*p, e...)
+// Append appends additional elements to the end of path, disregarding
+// the leading '/' on appended elements.
+func Append(p Path, ps ...Path) Path {
+	for _, e := range ps {
+		// Drop the leading '/' when appending/joining fully qualified paths.
+		if len(e) > 0 && e[0] == "/" {
+			e = e[1:]
+		}
+		p = append(p, e...)
 	}
+	return p
 }
 
 // AppendString appends additional string elements to the end of path.
-func (p *Path) AppendString(elem ...string) {
-	p.Append(ToPaths(elem)...)
-}
-
-// Join joins path and any number of additional elements, returning the result.
-func (p Path) Join(elem ...Path) Path {
-	root := p[:]
-	root.Append(elem...)
-	return root
-}
-
-// JoinString joins path and any number of additional string elements, returning the result.
-func (p Path) JoinString(elem ...string) Path {
-	root := p[:]
-	root.Append(ToPaths(elem)...)
-	return root
+func AppendString(p Path, elem ...string) Path {
+	return Append(p, ToPaths(elem)...)
 }
 
 // Join joins any number of paths and returns the result.
-func Join(elem ...Path) Path {
-	if len(elem) == 0 {
-		return nil
+func Join(p Path, ps ...Path) Path {
+	if len(ps) == 0 {
+		return p[:]
 	}
-	return elem[0].Join(elem[1:]...)
+	return Append(p[:], ps...)
+}
+
+// JoinString joins path and any number of additional string elements, returning the result.
+func JoinString(p Path, elem ...string) Path {
+	return Join(p, ToPaths(elem)...)
 }
 
 // SplitCommonRoot finds the longest command whole-segment prefix of the provided

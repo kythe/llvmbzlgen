@@ -23,8 +23,8 @@ def _gazelle_repositories():
 
     go_repository(
         name = "com_github_creachadair_ini",
-        commit = "619385f4914f",
         importpath = "github.com/creachadair/ini",
+        tag = "v0.0.1",
     )
 
     go_repository(

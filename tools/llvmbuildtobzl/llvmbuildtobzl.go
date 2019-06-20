@@ -145,7 +145,7 @@ type visitor struct {
 }
 
 func (v visitor) visitBuildFile(dir path.Path) ([]path.Path, func() error, error) {
-	file, err := load(dir.JoinString("LLVMBuild.txt").String())
+	file, err := load(path.JoinString(dir, "LLVMBuild.txt").String())
 	if err != nil {
 		return nil, nil, err
 	}
