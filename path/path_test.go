@@ -114,13 +114,13 @@ func TestWalkPath(t *testing.T) {
 		"/a/b/c/d/e/f",
 		"/a/b/c/d/e/f/g",
 	}
-	WalkPath(New("/"), func(p Path) ([]Path, func() error, error) {
+	WalkPath(New("/"), PrePathVisitor(func(p Path) ([]Path, error) {
 		found = append(found, p.String())
 		if len(p) == len(walk) {
-			return nil, nil, nil
+			return nil, nil
 		}
-		return []Path{walk[len(p) : len(p)+1]}, nil, nil
-	})
+		return []Path{walk[len(p) : len(p)+1]}, nil
+	}))
 	if diff := cmp.Diff(found, expected); diff != "" {
 		t.Errorf("Unexpected traversal:\n%s", diff)
 	}

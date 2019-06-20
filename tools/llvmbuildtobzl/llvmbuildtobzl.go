@@ -142,24 +142,26 @@ type visitor struct {
 	w *writer.StarlarkWriter
 }
 
-func (v visitor) visitBuildFile(dir path.Path) ([]path.Path, func() error, error) {
+func (v visitor) Enter(dir path.Path) ([]path.Path, error) {
 	file, err := load(path.JoinString(dir, "LLVMBuild.txt").String())
 	if err != nil {
-		return nil, nil, err
+		return nil, err
 	}
 	for _, s := range file.Components() {
 		if err := v.w.WriteCommand(s.RuleKind(), s.Properties()); err != nil {
-			return nil, nil, err
+			return nil, err
 		}
 	}
-	return path.ToPaths(file.Subdirectories()), nil, nil
+	return path.ToPaths(file.Subdirectories()), nil
 }
+
+func (v visitor) Leave(path.Path) error { return nil }
 
 func (v visitor) Start() path.PathVisitor {
 	if err := v.w.BeginMacro("generated_llvm_build_targets"); err != nil {
 		log.Fatal(err)
 	}
-	return v.visitBuildFile
+	return v
 }
 
 func (v visitor) End() error {
