@@ -45,16 +45,14 @@ func load(path string) (iniFile, error) {
 	if err != nil {
 		return nil, err
 	}
-	var section iniSection
 	f := make(iniFile)
 	return f, ini.Parse(file, ini.Handler{
 		Section: func(_ ini.Location, name string) error {
-			section = make(iniSection)
-			f[name] = section
+			f[name] = make(iniSection)
 			return nil
 		},
-		KeyValue: func(_ ini.Location, key string, values []string) error {
-			section[key] = flatSplit(values)
+		KeyValue: func(loc ini.Location, key string, values []string) error {
+			f[loc.Section][key] = flatSplit(values)
 			return nil
 		},
 	})
