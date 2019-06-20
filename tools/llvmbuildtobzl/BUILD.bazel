@@ -2,19 +2,19 @@ load("@io_bazel_rules_go//go:def.bzl", "go_binary", "go_library")
 
 go_library(
     name = "go_default_library",
-    srcs = ["cmaketobzl.go"],
-    importpath = "github.com/kythe/llvmbzlgen/tools/cmaketobzl",
+    srcs = ["llvmbuildtobzl.go"],
+    importpath = "github.com/kythe/llvmbzlgen/tools/llvmbuildtobzl",
     visibility = ["//visibility:private"],
     deps = [
-        "//cmakelib/ast:go_default_library",
-        "//cmakelib/bindings:go_default_library",
         "//path:go_default_library",
         "//writer:go_default_library",
+        "@com_github_creachadair_ini//:go_default_library",
+        "@org_bitbucket_creachadair_stringset//:go_default_library",
     ],
 )
 
 go_binary(
-    name = "cmaketobzl",
+    name = "llvmbuildtobzl",
     embed = [":go_default_library"],
     visibility = ["//visibility:public"],
 )

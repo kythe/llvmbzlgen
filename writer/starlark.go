@@ -118,7 +118,7 @@ func (sw *StarlarkWriter) PopDirectory() (string, error) {
 }
 
 // WriteCommand writes an invocation of the provided command and arguments.
-func (sw *StarlarkWriter) WriteCommand(cmd string, args ...string) error {
+func (sw *StarlarkWriter) WriteCommand(cmd string, args ...interface{}) error {
 	if sw.currentMacro == "" {
 		return errors.New("no current macro")
 	}
@@ -133,7 +133,11 @@ func (sw *StarlarkWriter) WriteCommand(cmd string, args ...string) error {
 		return err
 	}
 	for _, arg := range args {
-		if err := sw.writeString(fmt.Sprintf(", %#v", arg)); err != nil {
+		val, err := Marshal(arg)
+		if err != nil {
+			return err
+		}
+		if err := sw.writeString(fmt.Sprintf(", %s", string(val))); err != nil {
 			return err
 		}
 	}
@@ -160,6 +164,19 @@ func (sw *StarlarkWriter) writeBuffered() error {
 	}
 	sw.buf = nil
 	return nil
+}
+
+// ArgumentLiterals represents a list of literal positional argument and is written to support
+// the marshalling in WriteCommand.
+type ArgumentLiterals []string
+
+// MarshalStarlark implements Marshaler.
+func (al ArgumentLiterals) MarshalStarlark() ([]byte, error) {
+	b, err := Marshal([]string(al))
+	if err != nil {
+		return nil, err
+	}
+	return b[1 : len(b)-1], nil
 }
 
 func pop(s *[]string) (x string) {

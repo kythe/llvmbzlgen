@@ -27,11 +27,17 @@ type Path []string
 
 // Split cleans and splits the system-delimited filesystem path.
 func New(s string) Path {
-	p := strings.Split(filepath.ToSlash(filepath.Clean(s)), "/")
-	if p[0] == "" {
-		p[0] = "/"
+	s = filepath.ToSlash(filepath.Clean(s))
+	switch {
+	case s == "", s == ".":
+		return nil
+	case s == "/":
+		return Path{"/"}
+	case s[0] == '/':
+		return append(Path{"/"}, strings.Split(s[1:], "/")...)
+	default:
+		return strings.Split(s, "/")
 	}
-	return p
 }
 
 // ToPaths cleans and splits each of the system-delimited filesystem paths.
@@ -60,6 +66,37 @@ func (p Path) LessThan(o Path) bool {
 // String returns the properly platform-delimited form of the path.
 func (p Path) String() string {
 	return filepath.Join([]string(p)...)
+}
+
+// Append appends additional elements to the end of path, disregarding
+// the leading '/' on appended elements.
+func Append(p Path, ps ...Path) Path {
+	for _, e := range ps {
+		// Drop the leading '/' when appending/joining fully qualified paths.
+		if len(e) > 0 && e[0] == "/" {
+			e = e[1:]
+		}
+		p = append(p, e...)
+	}
+	return p
+}
+
+// AppendString appends additional string elements to the end of path.
+func AppendString(p Path, elem ...string) Path {
+	return Append(p, ToPaths(elem)...)
+}
+
+// Join joins any number of paths and returns the result.
+func Join(p Path, ps ...Path) Path {
+	if len(ps) == 0 {
+		return p[:]
+	}
+	return Append(p[:], ps...)
+}
+
+// JoinString joins path and any number of additional string elements, returning the result.
+func JoinString(p Path, elem ...string) Path {
+	return Join(p, ToPaths(elem)...)
 }
 
 // SplitCommonRoot finds the longest command whole-segment prefix of the provided

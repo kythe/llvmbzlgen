@@ -28,7 +28,7 @@ import (
 
 	"github.com/kythe/llvmbzlgen/cmakelib/ast"
 	"github.com/kythe/llvmbzlgen/cmakelib/bindings"
-	bzlpath "github.com/kythe/llvmbzlgen/tools/cmaketobzl/path"
+	bzlpath "github.com/kythe/llvmbzlgen/path"
 	"github.com/kythe/llvmbzlgen/writer"
 )
 
@@ -324,7 +324,7 @@ func (e *eval) exitDirectory(path string) error {
 
 // PrintCommand writes the given command to the configured StarlarkWriter.
 func (e *eval) PrintCommand(command *ast.CommandInvocation) error {
-	return e.w.WriteCommand(string(command.Name), command.Arguments.Eval(e.v)...)
+	return e.w.WriteCommand(string(command.Name), writer.ArgumentLiterals(command.Arguments.Eval(e.v)))
 }
 
 func main() {
