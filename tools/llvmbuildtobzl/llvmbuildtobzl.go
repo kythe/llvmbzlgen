@@ -45,6 +45,7 @@ func load(path string) (iniFile, error) {
 	if err != nil {
 		return nil, err
 	}
+	defer file.Close()
 	f := make(iniFile)
 	return f, ini.Parse(file, ini.Handler{
 		Section: func(_ ini.Location, name string) error {
@@ -58,16 +59,16 @@ func load(path string) (iniFile, error) {
 	})
 }
 
-func (f *iniFile) Subdirectories() []string {
+func (f iniFile) Subdirectories() []string {
 	if section := f.Section("common"); section != nil {
 		return section.Key("subdirectories")
 	}
 	return nil
 }
 
-func (f *iniFile) Components() []iniSection {
+func (f iniFile) Components() []iniSection {
 	var result []iniSection
-	for name, section := range *f {
+	for name, section := range f {
 		if strings.HasPrefix(name, "component_") {
 			result = append(result, section)
 		}
@@ -75,32 +76,32 @@ func (f *iniFile) Components() []iniSection {
 	return result
 }
 
-func (f *iniFile) Section(name string) *iniSection {
-	s, ok := (*f)[name]
+func (f iniFile) Section(name string) *iniSection {
+	s, ok := f[name]
 	if !ok {
 		return nil
 	}
 	return &s
 }
 
-func (s *iniSection) Key(name string) []string {
-	k, ok := (*s)[name]
+func (s iniSection) Key(name string) []string {
+	k, ok := s[name]
 	if !ok {
 		return nil
 	}
 	return k
 }
 
-func (s *iniSection) RuleKind() string {
+func (s iniSection) RuleKind() string {
 	if t := s.Key("type"); len(t) == 1 {
 		return strings.ToLower(camelPattern.ReplaceAllString(t[0], "${1}_${2}"))
 	}
 	return ""
 }
 
-func (s *iniSection) Properties() propArgs {
-	result := make(map[string]interface{}, len(*s)-1)
-	for k, v := range *s {
+func (s iniSection) Properties() propArgs {
+	result := make(map[string]interface{}, len(s))
+	for k, v := range s {
 		switch {
 		case listProps.Contains(k):
 			result[k] = v
@@ -133,7 +134,7 @@ func (pa propArgs) MarshalStarlark() ([]byte, error) {
 func flatSplit(values []string) []string {
 	var result []string
 	for _, v := range values {
-		result = append(result, strings.Split(v, " ")...)
+		result = append(result, strings.Fields(v)...)
 	}
 	return result
 }
@@ -157,24 +158,24 @@ func (v visitor) Enter(dir path.Path) ([]path.Path, error) {
 
 func (v visitor) Leave(path.Path) error { return nil }
 
-func (v visitor) Start() path.Visitor {
+func (v visitor) start() path.Visitor {
 	if err := v.w.BeginMacro("generated_llvm_build_targets"); err != nil {
 		log.Fatal(err)
 	}
 	return v
 }
 
-func (v visitor) End() error {
+func (v visitor) end() error {
 	return v.w.EndMacro()
 }
 
 func main() {
 	flag.Parse()
 	v := visitor{writer.NewStarlarkWriter(os.Stdout)}
-	if err := path.Walk(path.New(flag.Args()[0]), v.Start()); err != nil {
+	if err := path.Walk(path.New(flag.Args()[0]), v.start()); err != nil {
 		log.Fatal(err)
 	}
-	if err := v.End(); err != nil {
+	if err := v.end(); err != nil {
 		log.Fatal(err)
 	}
 }
