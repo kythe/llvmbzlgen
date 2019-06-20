@@ -166,18 +166,13 @@ func (sw *StarlarkWriter) writeBuffered() error {
 	return nil
 }
 
-// posArgs represents a list of literal positional argument and is written to support
+// ArgumentLiterals represents a list of literal positional argument and is written to support
 // the marshalling in WriteCommand.
-type posArgs []string
-
-// ArgumentLiterals returns a Marshaler which formats the string arguments as Starlark positional string literals.
-func ArgumentLiterals(args ...string) posArgs {
-	return args
-}
+type ArgumentLiterals []string
 
 // MarshalStarlark implements Marshaler.
-func (pa posArgs) MarshalStarlark() ([]byte, error) {
-	b, err := Marshal([]string(pa))
+func (al ArgumentLiterals) MarshalStarlark() ([]byte, error) {
+	b, err := Marshal([]string(al))
 	if err != nil {
 		return nil, err
 	}
