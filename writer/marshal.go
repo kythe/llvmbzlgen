@@ -25,7 +25,6 @@ var (
 // Boolean values are encoded as True/False.
 // Strings values are encoded as quoted Starlark strings.
 // Array and slice values are encoded as Starlark lists, with their contents recursively encoded.
-// Map values are encoded as Starlark dicts, recursively.
 // Nil pointer values are encoded as None.
 func Marshal(v interface{}) ([]byte, error) {
 	var buf bytes.Buffer

@@ -14,6 +14,7 @@
  * limitations under the License.
  */
 
+// Binary llvmbuildtobzl traverses the LLVM root provided and writes a Starlark macro to stdout.
 package main
 
 import (

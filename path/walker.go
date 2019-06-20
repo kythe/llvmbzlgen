@@ -18,7 +18,7 @@ package path
 
 // Visitor is an interface which visit on the provided path.
 type Visitor interface {
-	Enter(dir Path) ([]Path, error) // Preorder, returns the paths of children to visit.
+	Enter(dir Path) ([]Path, error) // Preorder, returns the paths of children to visit. Children must be relative to dir.
 	Leave(dir Path) error           // Postorder, called after children are visited.
 }
 
