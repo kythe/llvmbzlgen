@@ -157,7 +157,7 @@ func (v visitor) Enter(dir path.Path) ([]path.Path, error) {
 
 func (v visitor) Leave(path.Path) error { return nil }
 
-func (v visitor) Start() path.PathVisitor {
+func (v visitor) Start() path.Visitor {
 	if err := v.w.BeginMacro("generated_llvm_build_targets"); err != nil {
 		log.Fatal(err)
 	}
@@ -171,7 +171,7 @@ func (v visitor) End() error {
 func main() {
 	flag.Parse()
 	v := visitor{writer.NewStarlarkWriter(os.Stdout)}
-	if err := path.WalkPath(path.New(flag.Args()[0]), v.Start()); err != nil {
+	if err := path.Walk(path.New(flag.Args()[0]), v.Start()); err != nil {
 		log.Fatal(err)
 	}
 	if err := v.End(); err != nil {

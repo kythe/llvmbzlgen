@@ -114,7 +114,7 @@ func TestWalkPath(t *testing.T) {
 		"/a/b/c/d/e/f",
 		"/a/b/c/d/e/f/g",
 	}
-	WalkPath(New("/"), PrePathVisitor(func(p Path) ([]Path, error) {
+	Walk(New("/"), PreVisitor(func(p Path) ([]Path, error) {
 		found = append(found, p.String())
 		if len(p) == len(walk) {
 			return nil, nil
