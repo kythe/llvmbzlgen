@@ -2,4 +2,7 @@ package(
     default_visibility = ["//visibility:public"],
 )
 
-exports_files(["configure_file.bzl"])
+exports_files([
+    "configure_file.bzl",
+    "llvmbuild.bzl",
+])
