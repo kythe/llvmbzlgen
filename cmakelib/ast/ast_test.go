@@ -137,6 +137,53 @@ func TestUnquotedArgument(t *testing.T) {
 	}
 }
 
+type binder map[string]string
+
+func (b binder) Get(key string) string {
+	val, ok := b[key]
+	if ok {
+		return val
+	}
+	return ""
+}
+
+func (b binder) GetCache(key string) string {
+	return b.Get(key)
+}
+
+func (b binder) GetEnv(key string) string {
+	return b.Get(key)
+}
+
+func TestUnquotedEvaluation(t *testing.T) {
+	tests := map[string][]string{
+		`NoSpace`:                          {"NoSpace"},
+		`Escaped\ Space`:                   {`Escaped Space`},
+		`Escaped\;Semicolon`:               {`Escaped;Semicolon`},
+		`${VAR}`:                           {"VAR"},
+		`${LIST}`:                          {"A", "List", "Of", "Items"},
+		`$ENV`:                             {"$ENV"},
+		`Nested${VAR}Reference`:            {"NestedVARReference"},
+		`Mixed${LIST}And${ESCAPED}Var`:     {"MixedA", "List", "Of", "ItemsAndEscaped;SemicolonVar"},
+		`This;Divides;Into;Five;Arguments`: {"This", "Divides", "Into", "Five", "Arguments"},
+		`Escaped\${VAR}Ref`:                {"Escaped${VAR}Ref"},
+		`;LeadingSemicolon`:                {"", "LeadingSemicolon"},
+	}
+	vars := binder{
+		"VAR":     "VAR",
+		"LIST":    "A;List;Of;Items",
+		"ESCAPED": `Escaped\;Semicolon`,
+	}
+	for input, expected := range tests {
+		root, err := parseUnquotedArgument(input)
+		if err != nil {
+			t.Errorf("Error parsing %#v: %s", input, err)
+		} else if diff := cmp.Diff(root.Eval(vars), expected); diff != "" {
+			t.Errorf("Unexpected evaluation %#v:\n%s", input, diff)
+		}
+	}
+}
+
 func TestBracketArgument(t *testing.T) {
 	tests := map[string]string{
 		`[[]]`:                         ``,                   // Empty

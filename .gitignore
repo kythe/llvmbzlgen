@@ -1,1 +1,3 @@
 bazel-*
+generated_cmake_targets.bzl
+generated_llvm_build_targets.bzl
