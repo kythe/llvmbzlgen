@@ -333,7 +333,6 @@ func (e *eval) exitDirectory(path string) error {
 
 // PrintCommand writes the given command to the configured StarlarkWriter.
 func (e *eval) PrintCommand(command *ast.CommandInvocation) error {
-	//log.Println(command.Name, command.Arguments.Eval(e.v))
 	return e.w.WriteCommand(string(command.Name), writer.ArgumentLiterals(command.Arguments.Eval(e.v)))
 }
 
