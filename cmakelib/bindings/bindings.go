@@ -81,7 +81,7 @@ func (m *Mapping) Get(key string) string {
 	return m.GetCache(key)
 }
 
-// GetCache returns the associated value from the variable cache.
+// GetCache returns the associated value from the variable cache or an empty string if not found.
 func (m *Mapping) GetCache(key string) string {
 	val, ok := m.cache[key]
 	if ok {

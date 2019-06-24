@@ -146,9 +146,9 @@ func replaceEscapes(text string) string {
 	})
 }
 
-// splitSemicolon splits the provided text on non-escaped semi-colons.
+// splitAndUnescape splits the provided text on non-escaped semi-colons and replaces escape sequences.
 func splitAndUnescape(text string) []string {
-	start := 0
+	var start int
 	var result []string
 	for _, m := range splitPattern.FindAllStringIndex(text, -1) {
 		result = append(result, replaceEscapes(text[start:m[1]-1]))
