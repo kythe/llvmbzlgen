@@ -22,7 +22,6 @@ import (
 	"fmt"
 	"io"
 	"regexp"
-	"strings"
 
 	"bitbucket.org/creachadair/stringset"
 )
@@ -43,7 +42,6 @@ var (
 type StarlarkWriter struct {
 	w            *bufio.Writer
 	buf          []string
-	hasBody      bool
 	currentMacro string
 	dirStack     []string
 }
@@ -64,7 +62,6 @@ func (sw *StarlarkWriter) BeginMacro(name string) error {
 	}
 	sw.buf = append(sw.buf, fmt.Sprintf("def %s(ctx):\n", name))
 	sw.currentMacro = name
-	sw.hasBody = false
 	return nil
 }
 
@@ -77,10 +74,8 @@ func (sw *StarlarkWriter) EndMacro() error {
 	if err != nil {
 		return err
 	}
-	if !sw.hasBody {
-		if err := sw.writeString(sw.indentf("pass\n")); err != nil {
-			return err
-		}
+	if err := sw.writeString(sw.indentf("return ctx\n")); err != nil {
+		return err
 	}
 	sw.currentMacro = ""
 	return sw.w.Flush()
@@ -150,9 +145,6 @@ func (sw *StarlarkWriter) indentf(format string, vals ...interface{}) string {
 
 func (sw *StarlarkWriter) writeString(s string) error {
 	_, err := sw.w.WriteString(s)
-	if err == nil && !strings.HasPrefix(s, "def ") {
-		sw.hasBody = true
-	}
 	return err
 }
 

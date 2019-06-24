@@ -16,7 +16,7 @@ func TestEmptyMacro(t *testing.T) {
 	if err := writer.EndMacro(); err != nil {
 		t.Fatal("Unpexpected error ending macro: ", err)
 	}
-	if diff := cmp.Diff("def hello_world(ctx):\n    pass\n", b.String()); diff != "" {
+	if diff := cmp.Diff("def hello_world(ctx):\n    return ctx\n", b.String()); diff != "" {
 		t.Error("Unexpected writer output:\n", diff)
 	}
 }
@@ -42,7 +42,7 @@ func TestDirectoryBuffering(t *testing.T) {
 	if err := writer.EndMacro(); err != nil {
 		t.Fatal("Unpexpected error ending macro: ", err)
 	}
-	if diff := cmp.Diff("def hello_world(ctx):\n    pass\n", b.String()); diff != "" {
+	if diff := cmp.Diff("def hello_world(ctx):\n    return ctx\n", b.String()); diff != "" {
 		t.Error("Unexpected writer output:\n", diff)
 	}
 }
@@ -68,7 +68,8 @@ func TestCommandWriting(t *testing.T) {
 	expected := "def hello_world(ctx):\n" +
 		"    ctx = ctx.push_directory(ctx, \"this/is/a/path\")\n" +
 		"    ctx.run(ctx, \"with\", \"args\")\n" +
-		"    ctx = ctx.pop_directory(ctx)\n"
+		"    ctx = ctx.pop_directory(ctx)\n" +
+		"    return ctx\n"
 	if diff := cmp.Diff(expected, b.String()); diff != "" {
 		t.Error("Unexpected writer output:\n", diff)
 	}
@@ -102,7 +103,7 @@ func TestReservedWord(t *testing.T) {
 	if err := writer.EndMacro(); err != nil {
 		t.Fatal("Unpexpected error ending macro: ", err)
 	}
-	expected := "def return_(ctx):\n    pass\n"
+	const expected = "def return_(ctx):\n    return ctx\n"
 	if diff := cmp.Diff(expected, b.String()); diff != "" {
 		t.Error("Unexpected writer output:\n", diff)
 	}

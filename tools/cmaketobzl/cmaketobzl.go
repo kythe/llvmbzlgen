@@ -67,7 +67,8 @@ type eval struct {
 
 	w    *writer.StarlarkWriter
 	v    *bindings.Mapping
-	path []string
+	root bzlpath.Path
+	path bzlpath.Path
 }
 
 type options struct {
@@ -144,14 +145,14 @@ func (e *eval) parseFile(path string) (*ast.CMakeFile, error) {
 }
 
 // walk evaluates all of the provided CMakeLists.txt files into the body of a single Starlark macro..
-func (e *eval) walk(paths []string) error {
+func (e *eval) walk(paths []bzlpath.Path) error {
 	if err := e.w.BeginMacro(e.o.macroName); err != nil {
 		return err
 	}
-	root, paths := bzlpath.SplitCommonRootString(paths)
-	e.path = append(e.path, root)
+	root, paths := bzlpath.SplitCommonRoot(paths)
+	e.root = root
 	for _, p := range paths {
-		if err := e.AddSubdirectory(p); err != nil {
+		if err := e.AddSubdirectory(p.String()); err != nil {
 			return err
 		}
 	}
@@ -244,9 +245,10 @@ func (e *eval) setVariable(args []string) {
 	switch {
 	case len(args) > 0 && args[len(args)-1] == "PARENT_SCOPE":
 		e.v.SetParent(key, strings.Join(args[0:len(args)-1], ";"))
-		// When setting CACHE variables, the option can occur in either position -3 or -4 due to the optional FORCE parameter.
-	case len(args) >= 3 && args[len(args)-3] == "CACHE", len(args) >= 4 && args[len(args)-4] == "CACHE":
-		log.Println("Ignoring set of CACHE variable: ", key)
+	case len(args) >= 3 && args[len(args)-3] == "CACHE":
+		e.v.SetCache(key, strings.Join(args[:len(args)-3], ";"))
+	case len(args) >= 4 && args[len(args)-4] == "CACHE": // FORCE
+		e.v.SetCache(key, strings.Join(args[:len(args)-4], ";"))
 	default:
 		e.v.Set(key, strings.Join(args, ";"))
 	}
@@ -263,7 +265,7 @@ func (e *eval) unsetVariable(args []string) {
 	case len(args) == 2 && args[1] == "PARENT_SCOPE":
 		e.v.SetParent(args[0], "")
 	case len(args) == 2 && args[1] == "CACHE":
-		log.Println("Ignoring unset of CACHE variable: ", args[0])
+		e.v.SetCache(args[0], "")
 	default:
 		log.Println("Ignoring invalid unset command")
 	}
@@ -274,7 +276,7 @@ func (e *eval) AddSubdirectory(dirpath string) error {
 	if err := e.enterDirectory(dirpath); err != nil {
 		return err
 	}
-	file, err := e.parseFile(path.Join(path.Join(e.path...), "CMakeLists.txt"))
+	file, err := e.parseFile(path.Join(e.root.String(), e.path.String(), "CMakeLists.txt"))
 	if err != nil {
 		return err
 	}
@@ -294,9 +296,16 @@ func (e *eval) AddSubdirectory(dirpath string) error {
 	return e.exitDirectory(dirpath)
 }
 
-// CurrentDirectory returns the project-rooted path currently being traversed.
+// ProjectRoot returns the path prefix for forming project-rooted absolute paths.
+func (e *eval) ProjectRoot() string {
+	// Use a fixed prefix so that paths formed by simple string concatenation don't
+	// start with '//' which is often treated specially.
+	return "/root"
+}
+
+// CurrentDirectory returns the relative, project-rooted path currently being traversed.
 func (e *eval) CurrentDirectory() string {
-	return "/" + path.Join(e.path[1:]...)
+	return path.Join(e.path...)
 }
 
 // enterDirectory pushes a new directory onto the stack, setting up necessary state, etc.
@@ -306,8 +315,8 @@ func (e *eval) enterDirectory(dirpath string) error {
 	}
 	e.v.Push()
 	e.path = append(e.path, dirpath)
-	e.v.Set("CMAKE_CURRENT_SOURCE_DIR", e.CurrentDirectory())
-	e.v.Set("CMAKE_CURRENT_BINARY_DIR", e.CurrentDirectory())
+	e.v.Set("CMAKE_CURRENT_SOURCE_DIR", path.Join(e.ProjectRoot(), e.CurrentDirectory()))
+	e.v.Set("CMAKE_CURRENT_BINARY_DIR", path.Join(e.ProjectRoot(), e.CurrentDirectory()))
 	return nil
 }
 
@@ -330,12 +339,6 @@ func (e *eval) PrintCommand(command *ast.CommandInvocation) error {
 func main() {
 	flag.Parse()
 	eval := NewEvaluator(os.Stdout,
-		DefineVars(map[string]string{
-			"LLVM_MAIN_INCLUDE_DIR": "/include",
-			"LLVM_INCLUDE_DIR":      "/include",
-			"CLANG_SOURCE_DIR":      "/tools/clang",
-			"CLANG_BINARY_DIR":      "/tools/clang",
-		}),
 		ExcludePaths(Matching(`(^|/)(unittests|examples|cmake)($|/)`)),
 		RecurseCommands(Matching(`add(_\w+)?_subdirectory`)),
 		PrintCommands(Matching("^("+strings.Join([]string{
@@ -343,7 +346,7 @@ func main() {
 			"add_llvm_library", "add_clang_library", "add_llvm_target",
 			"add_tablegen", "tablegen", "clang_diag_gen", "clang_tablegen", "add_public_tablegen_target",
 		}, "|")+")$")))
-	if err := eval.walk(flag.Args()); err != nil {
+	if err := eval.walk(bzlpath.ToPaths(flag.Args())); err != nil {
 		log.Fatal(err)
 	}
 }

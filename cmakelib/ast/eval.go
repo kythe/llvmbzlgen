@@ -18,7 +18,13 @@ package ast
 
 import (
 	"fmt"
+	"regexp"
 	"strings"
+)
+
+var (
+	escapePattern = regexp.MustCompile(`\\.`)
+	splitPattern  = regexp.MustCompile(`^;|[^\\];`)
 )
 
 // Eval uses the provided bindings to resolve any variable references and returns a slice
@@ -56,7 +62,7 @@ func (a *QuotedArgument) Eval(vars Bindings) []string {
 	for _, e := range a.Elements {
 		parts = append(parts, e.Eval(vars)...)
 	}
-	return []string{strings.Join(parts, "")}
+	return []string{replaceEscapes(strings.Join(parts, ""))}
 }
 
 // Eval returns a slice of values after resolving variable references using vars.
@@ -64,7 +70,6 @@ func (e *QuotedElement) Eval(vars Bindings) []string {
 	if e.Ref != nil {
 		return e.Ref.Eval(vars)
 	}
-	// TODO(shahms): Deal with escape sequences.
 	return []string{e.Text}
 }
 
@@ -75,7 +80,7 @@ func (a *UnquotedArgument) Eval(vars Bindings) []string {
 	for _, e := range a.Elements {
 		parts = append(parts, e.Eval(vars)...)
 	}
-	return []string{strings.Join(parts, "")}
+	return splitAndUnescape(strings.Join(parts, ""))
 }
 
 // Eval returns a slice of values after evaluating escape sequences
@@ -84,7 +89,6 @@ func (e *UnquotedElement) Eval(vars Bindings) []string {
 	if e.Ref != nil {
 		return e.Ref.Eval(vars)
 	}
-	// TODO(shahms): Deal with escape sequences and lists.
 	return []string{e.Text}
 }
 
@@ -124,4 +128,31 @@ func (v *VariableElement) Eval(vars Bindings) []string {
 		}
 	}
 	return []string{strings.Join(parts, "")}
+}
+
+// replaceEscapes replaces escape sequences in text with the appropriate value.
+func replaceEscapes(text string) string {
+	return escapePattern.ReplaceAllStringFunc(text, func(m string) string {
+		switch m[1] {
+		case 'n':
+			return "\n"
+		case 'r':
+			return "\r"
+		case 't':
+			return "\t"
+		default:
+			return m[1:]
+		}
+	})
+}
+
+// splitAndUnescape splits the provided text on non-escaped semi-colons and replaces escape sequences.
+func splitAndUnescape(text string) []string {
+	var start int
+	var result []string
+	for _, m := range splitPattern.FindAllStringIndex(text, -1) {
+		result = append(result, replaceEscapes(text[start:m[1]-1]))
+		start = m[1]
+	}
+	return append(result, replaceEscapes(text[start:len(text)]))
 }

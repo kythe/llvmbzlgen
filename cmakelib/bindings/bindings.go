@@ -22,12 +22,13 @@ import "log"
 
 // Mapping is a stack of map[string]string for CMake variables.
 type Mapping struct {
-	vs []map[string]string
+	vs    []map[string]string
+	cache map[string]string
 }
 
 // New returns a new, empty, variable stack.
 func New() *Mapping {
-	m := &Mapping{}
+	m := &Mapping{cache: make(map[string]string)}
 	m.Push()
 	return m
 }
@@ -59,6 +60,12 @@ func (m *Mapping) SetParent(key, value string) {
 	}
 }
 
+// SetCache sets a key to a particular value in CACHE scope.
+// Setting a key to the empty string is equivalent to deleting it, in accordance with CMake semantics.
+func (m *Mapping) SetCache(key, value string) {
+	m.cache[key] = value
+}
+
 // Get looks from the current scope up to find the nearest value for key.
 // If they key is absent, returns the empty string.
 // This matches the semantics of CMake variable lookup.
@@ -74,8 +81,12 @@ func (m *Mapping) Get(key string) string {
 	return m.GetCache(key)
 }
 
-// GetCache returns the associated value from the variable cache (not implemented).
+// GetCache returns the associated value from the variable cache or an empty string if not found.
 func (m *Mapping) GetCache(key string) string {
+	val, ok := m.cache[key]
+	if ok {
+		return val
+	}
 	return ""
 }
 
