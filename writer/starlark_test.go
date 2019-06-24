@@ -103,7 +103,7 @@ func TestReservedWord(t *testing.T) {
 	if err := writer.EndMacro(); err != nil {
 		t.Fatal("Unpexpected error ending macro: ", err)
 	}
-	expected := "def return_(ctx):\n    return ctx\n"
+	const expected = "def return_(ctx):\n    return ctx\n"
 	if diff := cmp.Diff(expected, b.String()); diff != "" {
 		t.Error("Unexpected writer output:\n", diff)
 	}
