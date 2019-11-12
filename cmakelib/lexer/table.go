@@ -42,6 +42,7 @@ var (
 	legacyPattern   = fmt.Sprintf(`(%s|%s|"(%s|%s|[ \t[=])*")`, makeVarPattern, unquotedPattern, makeVarPattern, unquotedPattern)
 )
 
+// fileTable contains the Rules table for lexing CMakeLists.txt files.
 var fileTable = rules.New(
 	rules.ExclusiveConditions(
 		commentCondition,
@@ -76,6 +77,7 @@ var fileTable = rules.New(
 	rules.In().Match(rules.EOFPattern, lexEOF),
 )
 
+// argTable contains Rules for lexing argument literals.
 var argTable = rules.New(
 	rules.In().Match(`\$ENV\{`, lexEnvOpen),
 	rules.In().Match(`\$[A-Za-z0-9_.+-]*\{`, lexVarOpen),
@@ -86,22 +88,26 @@ var argTable = rules.New(
 	rules.In().Match(rules.EOFPattern, lexEOF),
 )
 
+// tableLexer is a table-driven lexer used by both files and arguments.
 type tableLexer struct {
 	s *rules.Scanner
 
 	buf []lexer.Token
 
-	bracket int
-	base    lexer.Token
+	bracket int         // Number of `=` in the opening bracket.
+	base    lexer.Token // Token used to initiate argument lexing.
 }
 
+// driver is a ScanState-compatible wrapper over tableLexer.
 type driver tableLexer
 
+// splitLexer alternates between lexing file-level constructrs and dividing arguments into pieces, as necessary.
 type splitLexer struct {
 	file lexer.Lexer
 	arg  lexer.Lexer
 }
 
+// Next implements the lexer.Lexer interface for splitLexer.
 func (s *splitLexer) Next() (lexer.Token, error) {
 	if s.arg != nil {
 		if next, err := s.arg.Next(); !(err == nil && next.Type == lexer.EOF) {
@@ -125,6 +131,7 @@ func (s *splitLexer) Next() (lexer.Token, error) {
 	return next, err
 }
 
+// newFileLexer constructs a new tableLexer for splitting CMakeLists files.
 func newFileLexer(r io.Reader) *tableLexer {
 	return &tableLexer{
 		rules.NewScanner(fileTable, r),
@@ -134,6 +141,7 @@ func newFileLexer(r io.Reader) *tableLexer {
 	}
 }
 
+// newArgumentLexer constructs a new tableLexer for splitting CMake arguments.
 func newArgumentLexer(base lexer.Token) *tableLexer {
 	l := &tableLexer{
 		rules.NewScanner(argTable, strings.NewReader(base.Value)),
@@ -145,10 +153,12 @@ func newArgumentLexer(base lexer.Token) *tableLexer {
 	return l
 }
 
+// newSplitLexer constructs a new CMakeLists lexer over the given io.Reader.
 func newSplitLexer(r io.Reader) *splitLexer {
 	return &splitLexer{newFileLexer(r), nil}
 }
 
+// Next implements lexer.Lexer interface for tableLexer.
 func (l *tableLexer) Next() (lexer.Token, error) {
 	for {
 		if len(l.buf) > 0 {
@@ -162,6 +172,7 @@ func (l *tableLexer) Next() (lexer.Token, error) {
 	}
 }
 
+// advance scans until an action signals completion.
 func (l *tableLexer) advance() error {
 	// Reset the token.
 	l.buf = []lexer.Token{lexer.EOFToken(l.s.Pos())}
@@ -182,14 +193,17 @@ func (l *tableLexer) advance() error {
 	return l.s.Err()
 }
 
+// Begin implements rules.ScanState for tableLexer/driver.
 func (d *driver) Begin(cond rules.StartCondition) {
 	d.s.Begin(cond)
 }
 
+// Bytes implements rules.ScanState for tableLexer/driver.
 func (d *driver) Bytes() []byte {
 	return d.s.Bytes()
 }
 
+// Token implements rules.ScanState for tableLexer/driver.
 func (d *driver) Token() *lexer.Token {
 	return &d.buf[len(d.buf)-1]
 }

@@ -23,40 +23,52 @@ import (
 	"github.com/alecthomas/participle/lexer"
 )
 
+// StartCondition indicates a particular lexer state in which a rule should apply.
+// By default, start conditions are inclusive and will match rules belonging to an empty
+// set of start conditions as well as those which are explicitly specified.
+// Exclusive start conditions only match if the scanner is in the indicated state.
 type StartCondition int
 
 const (
-	InitialCondition StartCondition = 0
-	EOFPattern                      = ``
+	InitialCondition StartCondition = 0  // Initial start condition for a scanner.
+	EOFPattern                      = `` // String indicating a rule should match at EOF.
+
 )
 
-var EOFRegexp *regexp.Regexp
+var EOFRegexp *regexp.Regexp // Regexp indicating a rule should match at EOF.
 
+// ScanState interface defines a minimal set of behaviors expected by an action callback.
 type ScanState interface {
-	Begin(StartCondition)
-	Bytes() []byte
-	Token() *lexer.Token
+	Begin(StartCondition) // Transition the ScanState to the indicating start condition.
+	Bytes() []byte        // The currently matched bytes.
+	Token() *lexer.Token  // The lexer.Token being constructed.
 }
 
+// Action is a callback intended to be invoked when the rule conditions match.
 type Action func(ScanState) (bool, error)
 
+// Rules is a collection of rules to match against an incoming text string and current StartCondtion.
 type Rules struct {
 	condMap map[StartCondition]bool
 	table   []rule
 }
 
+// rule is a single entry, indicating a list of start conditions and pattern to select an action.
 type rule struct {
 	conds  []StartCondition
 	re     *regexp.Regexp
 	action Action
 }
 
+// ruleBuilder abstracts start condtion collection to make rule table definitions more readable.
 type ruleBuilder struct {
 	conds []StartCondition
 }
 
+// Option is a callback to apply to the Rules object during construction.
 type Option func(*Rules)
 
+// ExclusiveConditions configures the Rules table so the provided StartConditions are considered exclusive.
 func ExclusiveConditions(cond StartCondition, tail ...StartCondition) Option {
 	return func(r *Rules) {
 		r.condMap[cond] = true
@@ -66,6 +78,7 @@ func ExclusiveConditions(cond StartCondition, tail ...StartCondition) Option {
 	}
 }
 
+// InclusiveConditions configures the Rules table so the provided StartConditions are considered inclusive (the default).
 func InclusiveConditions(cond StartCondition, tail ...StartCondition) Option {
 	return func(r *Rules) {
 		r.condMap[cond] = false
@@ -75,16 +88,19 @@ func InclusiveConditions(cond StartCondition, tail ...StartCondition) Option {
 	}
 }
 
+// In accepts a (possibly empty) list of start conditions during which to consider a rule.
 func In(conds ...StartCondition) *ruleBuilder {
 	return &ruleBuilder{conds}
 }
 
+// Match returns an option which adds the configured rule to the rules table.
 func (c *ruleBuilder) Match(pat string, action Action) Option {
 	return func(r *Rules) {
 		r.MustAdd(c.conds, pat, action)
 	}
 }
 
+// New returns a new Rules table, after applying the provided options.
 func New(opts ...Option) *Rules {
 	r := &Rules{make(map[StartCondition]bool), nil}
 	for _, opt := range opts {
@@ -93,11 +109,13 @@ func New(opts ...Option) *Rules {
 	return r
 }
 
+// AddRegexp adds a rule matching the regular expression and start conditions.
 func (r *Rules) AddRegexp(conds []StartCondition, re *regexp.Regexp, action Action) error {
 	r.table = append(r.table, rule{conds, re, action})
 	return nil
 }
 
+// Add adds a rule matching the pattern and start conditions.
 func (r *Rules) Add(conds []StartCondition, pat string, action Action) error {
 	re, err := compileRegexp(pat)
 	if err != nil {
@@ -106,10 +124,13 @@ func (r *Rules) Add(conds []StartCondition, pat string, action Action) error {
 	return r.AddRegexp(conds, re, action)
 }
 
+// Add adds a rule matching the pattern and start conditions.
 func (r *Rules) MustAdd(conds []StartCondition, pat string, action Action) {
 	r.AddRegexp(conds, mustCompileRegexp(pat), action)
 }
 
+// Match considers applicable rules and returns the action associated with the longest
+// matching pattern, as well as the portion of the data matched by that pattern.
 func (r *Rules) Match(curr StartCondition, data []byte) (Action, []byte) {
 	var found struct {
 		action  Action

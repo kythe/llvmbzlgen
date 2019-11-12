@@ -29,6 +29,7 @@ var (
 	eolBytes = []byte("\n")
 )
 
+// Scanner scans an underlying io.Reader, matching the text against the configured rules and retaining the appropriate action.
 type Scanner struct {
 	rules *Rules
 	s     *bufio.Scanner
@@ -39,6 +40,7 @@ type Scanner struct {
 	action Action
 }
 
+// NewScanner returns a new action scanner, applying the provided rules to text obtained from the io.Reader.
 func NewScanner(rules *Rules, r io.Reader) *Scanner {
 	s := &Scanner{
 		rules,
@@ -56,14 +58,18 @@ func NewScanner(rules *Rules, r io.Reader) *Scanner {
 	return s
 }
 
+// Begin transitions the scanner to the indicated start condition.
 func (s *Scanner) Begin(cond StartCondition) {
 	s.cond = cond
 }
 
+// SetPosition sets the starting position of the scanner.
 func (s *Scanner) SetPosition(pos lexer.Position) {
 	s.pos = pos
 }
 
+// Scan reads text from the underlying reader, updates the current position
+// and returns true if there is an action and corresponding bytes available.
 func (s *Scanner) Scan() bool {
 	if s.s.Scan() {
 		updatePosition(&s.pos, s.s.Bytes())
@@ -72,18 +78,22 @@ func (s *Scanner) Scan() bool {
 	return false
 }
 
+// Pos returns the current position of the scanner.
 func (s *Scanner) Pos() lexer.Position {
 	return s.pos
 }
 
+// Action returns the most recently selected action.
 func (s *Scanner) Action() Action {
 	return s.action
 }
 
+// Bytes returns the text matched by the pattern associated with selected action.
 func (s *Scanner) Bytes() []byte {
 	return s.s.Bytes()
 }
 
+// Err returns the underlying error, if any.
 func (s *Scanner) Err() error {
 	return s.s.Err()
 }
