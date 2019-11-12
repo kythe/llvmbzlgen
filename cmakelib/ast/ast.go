@@ -17,14 +17,8 @@
 package ast
 
 import (
-	"fmt"
-	"regexp"
-	"strings"
-
 	"github.com/alecthomas/participle/lexer"
 )
-
-var identPattern = regexp.MustCompile(`[A-Za-z_]\w*`)
 
 // CMakeFile represents the root of a CMakeLists.txt AST and corresponds to:
 // https://cmake.org/cmake/help/v3.0/manual/cmake-language.7.html#source-files
@@ -37,7 +31,7 @@ type CMakeFile struct {
 type CommandInvocation struct {
 	Pos lexer.Position
 
-	Name      Ident        `Space* @Unquoted Space*`
+	Name      string       `Space* @Identifier  Space*`
 	Arguments ArgumentList `@@`
 }
 
@@ -62,7 +56,7 @@ type Argument struct {
 // BracketArgument is a [=*[<text>]=*]-enclosed argument corresponding to:
 // https://cmake.org/cmake/help/v3.0/manual/cmake-language.7.html#bracket-argument
 type BracketArgument struct {
-	Text string `BracketOpen @BracketContent? BracketClose`
+	Text string `@BracketContent`
 }
 
 // QuotedArgument is a simple quoted string, corresponding to:
@@ -87,7 +81,7 @@ type UnquotedArgument struct {
 // UnquotedElement is either a run of unquoted text or a variable reference.
 type UnquotedElement struct {
 	Ref  *VariableReference `@@`
-	Text string             `| @( Unquoted | EscapeSequence | VarClose )+`
+	Text string             `| @( Identifier | Unquoted | EscapeSequence | VarClose )+`
 }
 
 // VariableReference is a possibly-nested CMake ${}-enclosed variable reference:
@@ -104,20 +98,6 @@ type VariableReference struct {
 // VariableElement is either a run of text corresponding the a variable name
 // or a nested VariableReference.
 type VariableElement struct {
-	Text string             `@( Unquoted | Quoted )?`
+	Text string             `@( Identifier | Unquoted | Quoted )?`
 	Ref  *VariableReference `( @@ )?`
-}
-
-// Ident is a limited-alphabet string of unquoted text.
-// It is handled during capture to simplify the lexer and grammar.
-type Ident string
-
-// Capture captures a list of text values, checking that it is a valid identifier.
-func (i *Ident) Capture(values []string) error {
-	value := strings.Join(values, "")
-	if !identPattern.MatchString(value) {
-		return fmt.Errorf("invalid identifier: %s", value)
-	}
-	*i = Ident(value)
-	return nil
 }
