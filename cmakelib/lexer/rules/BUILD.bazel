@@ -1,0 +1,12 @@
+load("@io_bazel_rules_go//go:def.bzl", "go_library")
+
+go_library(
+    name = "go_default_library",
+    srcs = [
+        "rules.go",
+        "scanner.go",
+    ],
+    importpath = "github.com/kythe/llvmbzlgen/cmakelib/lexer/rules",
+    visibility = ["//visibility:public"],
+    deps = ["@com_github_alecthomas_participle//lexer:go_default_library"],
+)

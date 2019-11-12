@@ -95,7 +95,7 @@ func TestDirectiveSpacing(t *testing.T) {
 	}
 
 	expected := []Token{
-		{Type: Unquoted, Value: "directive"},
+		{Type: Identifier, Value: "directive"},
 		{Type: Punct, Value: "("},
 		{Type: Punct, Value: ")"},
 		plex.EOFToken(plex.Position{}),
@@ -117,22 +117,16 @@ func TestDirectiveSpacing(t *testing.T) {
 func TestBracketArgument(t *testing.T) {
 	tests := map[string][]lexer.Token{
 		`[[]]`: { // Empty
-			newToken(BracketOpen, `[[`),
-			newToken(BracketClose, `]]`),
+			newToken(BracketContent, ``),
 		},
 		`[=[]=]`: { // Empty, non-empty delimiter.
-			newToken(BracketOpen, `[=[`),
-			newToken(BracketClose, `]=]`),
+			newToken(BracketContent, ``),
 		},
 		`[=[${var}]=]`: { // Unevaluated variable reference.
-			newToken(BracketOpen, `[=[`),
 			newToken(BracketContent, `${var}`),
-			newToken(BracketClose, `]=]`),
 		},
 		`[===[content\n]]]=]]==]]===]`: { // Unmatched delimiters.
-			newToken(BracketOpen, `[===[`),
 			newToken(BracketContent, `content\n]]]=]]==]`),
-			newToken(BracketClose, `]===]`),
 		},
 	}
 	for input, expected := range tests {
@@ -150,30 +144,36 @@ func TestBracketArgument(t *testing.T) {
 func TestQuotedArgument(t *testing.T) {
 	inputs := []string{
 		`""`,                // Empty.
-		`"\n"`,              // Newline.
+		"\"\n\"",            // Newline.
+		"\"a\\\nb\"",        // Escaped continuation.
+		`"\n"`,              // Newline escape sequence.
 		`"\\n"`,             // Escaped newline.
 		`"regular text"`,    // Boring regular text.
 		`"ident"`,           // Thing that could be an identifier.
 		`"\${var}"`,         // Escaped variable reference.
 		`"${var}"`,          // Variable reference.
 		`"Nested${var}Ref"`, // Nested variable reference.
-		// TODO(shahms): Handle mid-quoted-string errors better.
+		// TODO(shahms): Handle mis-quoted-string errors better.
 		//`"no end`,        // Missing the closing quote.
 	}
 	expected := [][]Token{
-		{},
-		{newToken(EscapeSequence, `\n`)},
-		{newToken(EscapeSequence, `\\`), newToken(Quoted, "n")},
-		{newToken(Quoted, "regular text")},
-		{newToken(Quoted, "ident")},
-		{newToken(EscapeSequence, `\$`), newToken(Quoted, "{var"), newToken(VarClose, "}")},
-		{newToken(VarOpen, "${"), newToken(Quoted, "var"), newToken(VarClose, "}")},
+		{newToken(Quote, `"`), newToken(Quoted, ""), newToken(Quote, `"`)},
+		{newToken(Quote, `"`), newToken(Quoted, "\n"), newToken(Quote, `"`)},
+		{newToken(Quote, `"`), newToken(Quoted, "ab"), newToken(Quote, `"`)},
+		{newToken(Quote, `"`), newToken(EscapeSequence, `\n`), newToken(Quote, `"`)},
+		{newToken(Quote, `"`), newToken(EscapeSequence, `\\`), newToken(Quoted, "n"), newToken(Quote, `"`)},
+		{newToken(Quote, `"`), newToken(Quoted, "regular text"), newToken(Quote, `"`)},
+		{newToken(Quote, `"`), newToken(Quoted, "ident"), newToken(Quote, `"`)},
+		{newToken(Quote, `"`), newToken(EscapeSequence, `\$`), newToken(Quoted, "{var"), newToken(VarClose, "}"), newToken(Quote, `"`)},
+		{newToken(Quote, `"`), newToken(VarOpen, "${"), newToken(Quoted, "var"), newToken(VarClose, "}"), newToken(Quote, `"`)},
 		{
+			newToken(Quote, `"`),
 			newToken(Quoted, "Nested"),
 			newToken(VarOpen, "${"),
 			newToken(Quoted, "var"),
 			newToken(VarClose, "}"),
 			newToken(Quoted, "Ref"),
+			newToken(Quote, `"`),
 		},
 	}
 	for n, input := range inputs {
@@ -182,9 +182,7 @@ func TestQuotedArgument(t *testing.T) {
 			t.Errorf("Error lexing %s: %s", input, err)
 			continue
 		}
-		// Strip off the tokens for the quotation marks and EOF.
-		tokens = tokens[1 : len(tokens)-2]
-		if diff := cmp.Diff(tokens, append(expected[n]), ignorePosition()); diff != "" {
+		if diff := cmp.Diff(tokens, append(expected[n], plex.EOFToken(plex.Position{})), ignorePosition()); diff != "" {
 			t.Errorf("Unexpected lex (%#v):\n%s", input, diff)
 		}
 	}
@@ -192,7 +190,7 @@ func TestQuotedArgument(t *testing.T) {
 
 func TestUnquotedArgument(t *testing.T) {
 	tests := map[string][]Token{
-		`NoSpace`: {newToken(Unquoted, "NoSpace")},
+		`NoSpace`: {newToken(Identifier, "NoSpace")},
 		`Escaped\ Space`: {
 			newToken(Unquoted, `Escaped`),
 			newToken(EscapeSequence, `\ `),
@@ -222,21 +220,20 @@ func TestUnquotedArgument(t *testing.T) {
 			newToken(Unquoted, "Ref"),
 		},
 		`A AND NOT(B OR C)`: {
-			newToken(Unquoted, "A"),
+			newToken(Identifier, "A"),
 			newToken(Space, " "),
-			newToken(Unquoted, "AND"),
+			newToken(Identifier, "AND"),
 			newToken(Space, " "),
-			newToken(Unquoted, "NOT"),
+			newToken(Identifier, "NOT"),
 			newToken(Punct, "("),
-			newToken(Unquoted, "B"),
+			newToken(Identifier, "B"),
 			newToken(Space, " "),
-			newToken(Unquoted, "OR"),
+			newToken(Identifier, "OR"),
 			newToken(Space, " "),
-			newToken(Unquoted, "C"),
+			newToken(Identifier, "C"),
 			newToken(Punct, ")"),
 		},
-		// TODO(shahms): Support this.
-		//`Legacy"em bedded"Quotes`: {newToken(Unquoted, `Legacy"em bedded"Quotes`)},
+		`Legacy"em bedded"Quotes`: {newToken(Unquoted, `Legacy"em bedded"Quotes`)},
 	}
 	// Variable references and escape sequences are handled during evaluation.
 	for input, expected := range tests {
@@ -254,11 +251,11 @@ func TestUnquotedArgument(t *testing.T) {
 func TestLexerPosition(t *testing.T) {
 	tests := map[string][]Token{
 		"directive (\nCOMMAND\n)\n": {
-			newTokenAt(Unquoted, "directive", 0, 1, 1),
+			newTokenAt(Identifier, "directive", 0, 1, 1),
 			newTokenAt(Space, " ", 9, 1, 10),
 			newTokenAt(Punct, "(", 10, 1, 11),
 			newTokenAt(Newline, "\n", 11, 1, 12),
-			newTokenAt(Unquoted, "COMMAND", 12, 2, 1),
+			newTokenAt(Identifier, "COMMAND", 12, 2, 1),
 			newTokenAt(Newline, "\n", 19, 2, 8),
 			newTokenAt(Punct, ")", 20, 3, 1),
 			newTokenAt(Newline, "\n", 21, 3, 2),
@@ -275,5 +272,54 @@ func TestLexerPosition(t *testing.T) {
 			t.Errorf("Unexpected lex (%#v):\n%s", input, diff)
 		}
 
+	}
+}
+
+func TestLexerMixedArguments(t *testing.T) {
+	tests := map[string][]Token{
+		`directive(1234 Unquoted;List Nested${VAR}Ref "Quoted${VAR}Ref")`: {
+			newToken(Identifier, "directive"),
+			newToken(Punct, "("),
+			newToken(Unquoted, "1234"),
+			newToken(Space, " "),
+			newToken(Unquoted, "Unquoted;List"),
+			newToken(Space, " "),
+			newToken(Unquoted, "Nested"),
+			newToken(VarOpen, "${"),
+			newToken(Unquoted, "VAR"),
+			newToken(VarClose, "}"),
+			newToken(Unquoted, "Ref"),
+			newToken(Space, " "),
+			newToken(Quote, `"`),
+			newToken(Quoted, "Quoted"),
+			newToken(VarOpen, "${"),
+			newToken(Quoted, "VAR"),
+			newToken(VarClose, "}"),
+			newToken(Quoted, "Ref"),
+			newToken(Quote, `"`),
+			newToken(Punct, ")"),
+			newToken(plex.EOF, ""),
+		},
+		`directive(terrible"cho#ces"tail)`: {
+			newToken(Identifier, "directive"),
+			newToken(Punct, "("),
+			newToken(Identifier, "terrible"),
+			newToken(Quote, `"`),
+			newToken(Quoted, "cho#ces"),
+			newToken(Quote, `"`),
+			newToken(Identifier, "tail"),
+			newToken(Punct, ")"),
+			newToken(plex.EOF, ""),
+		},
+	}
+	for input, expected := range tests {
+		tokens, err := lexString(input)
+		if err != nil {
+			t.Errorf("Error parsing %s: %s", input, err)
+			continue
+		}
+		if diff := cmp.Diff(tokens, expected, ignorePosition()); diff != "" {
+			t.Errorf("Unexpected lex (%#v):\n%s", input, diff)
+		}
 	}
 }

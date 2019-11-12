@@ -203,12 +203,12 @@ func TestBracketArgument(t *testing.T) {
 
 func TestQuotedArgument(t *testing.T) {
 	tests := map[string]QuotedArgument{
-		`""`:               {},                                                  // Empty.
+		`""`:               {Elements: []QuotedElement{{Text: ""}}},             // Empty.
 		`"\n"`:             {Elements: []QuotedElement{{Text: `\n`}}},           // Newline.
 		`"\\n"`:            {Elements: []QuotedElement{{Text: `\\n`}}},          // Escaped newline.
 		"\"\n\"":           {Elements: []QuotedElement{{Text: "\n"}}},           // Literal newline.
 		`"regular text"`:   {Elements: []QuotedElement{{Text: "regular text"}}}, // Boring regular text.
-		"\"cont\\\ninue\"": {Elements: []QuotedElement{{Text: "cont\\\ninue"}}}, // Escaped continuation.
+		"\"cont\\\ninue\"": {Elements: []QuotedElement{{Text: "continue"}}},     // Escaped continuation.
 		`"ident"`:          {Elements: []QuotedElement{{Text: `ident`}}},        // Thing that could be an identifier.
 		`"\${var}"`:        {Elements: []QuotedElement{{Text: `\${var}`}}},      // Escaped variable reference.
 		`"$ENV"`:           {Elements: []QuotedElement{{Text: "$ENV"}}},         // String that looks like a varible reference.
@@ -297,6 +297,24 @@ func TestCMakeFile(t *testing.T) {
 					{Text: "Quoted"},
 					{Ref: &VariableReference{Elements: []VariableElement{{Text: "VAR"}}}},
 					{Text: "Ref"},
+				}}},
+			}}}},
+		},
+		`directive(terrible"cho#ces"tail)`: {
+			[]CommandInvocation{{Name: "directive", Arguments: ArgumentList{Values: []Argument{
+				{UnquotedArgument: &UnquotedArgument{Elements: []UnquotedElement{{Text: "terrible"}}}},
+				{QuotedArgument: &QuotedArgument{Elements: []QuotedElement{{Text: "cho#ces"}}}},
+				{UnquotedArgument: &UnquotedArgument{Elements: []UnquotedElement{{Text: "tail"}}}},
+			}}}},
+		},
+		`set(LLVM_RUNTIME_OUTPUT_INTDIR ${CMAKE_CURRENT_BINARY_DIR}/${CMAKE_CFG_INTDIR}/bin)`: {
+			[]CommandInvocation{{Name: "set", Arguments: ArgumentList{Values: []Argument{
+				{UnquotedArgument: &UnquotedArgument{Elements: []UnquotedElement{{Text: "LLVM_RUNTIME_OUTPUT_INTDIR"}}}},
+				{UnquotedArgument: &UnquotedArgument{Elements: []UnquotedElement{
+					{Ref: &VariableReference{Elements: []VariableElement{{Text: "CMAKE_CURRENT_BINARY_DIR"}}}},
+					{Text: "/"},
+					{Ref: &VariableReference{Elements: []VariableElement{{Text: "CMAKE_CFG_INTDIR"}}}},
+					{Text: "/bin"},
 				}}},
 			}}}},
 		},
