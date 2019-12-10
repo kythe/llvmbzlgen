@@ -343,7 +343,7 @@ func main() {
 		RecurseCommands(Matching(`add(_\w+)?_subdirectory`)),
 		PrintCommands(Matching("^("+strings.Join([]string{
 			"configure_file", "set",
-			"add_llvm_library", "add_clang_library", "add_llvm_target",
+			"add_llvm_library", "add_llvm_component_library", "add_clang_library", "add_llvm_target",
 			"add_tablegen", "tablegen", "clang_diag_gen", "clang_tablegen", "add_public_tablegen_target",
 		}, "|")+")$")))
 	if err := eval.walk(bzlpath.ToPaths(flag.Args())); err != nil {
