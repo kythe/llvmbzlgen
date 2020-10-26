@@ -55,7 +55,7 @@ def library_dependencies(ctx, name):
         # Because we can't recurse in Starlark, we rely on the fact that
         # Library and Tool targets only have Library dependencies in LLVMBuild.
         ctx._graph[d].library_name
-        for d in ctx._graph[name].deps
+        for d in ctx._graph.get(name, struct(deps = [])).deps
     ]
 
 def make_context():
