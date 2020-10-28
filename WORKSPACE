@@ -5,9 +5,9 @@ load("//:setup.bzl", "llvmbzlgen_repositories")
 
 llvmbzlgen_repositories()
 
-load("//:external.bzl", "_gazelle_dependencies", "llvmbzlgen_dependencies")
+load("//:external.bzl", "_gazelle_repositories", "llvmbzlgen_dependencies")
 
 llvmbzlgen_dependencies()
 
-# gazelle:repository_macro external.bzl%_gazelle_dependencies
-_gazelle_dependencies()
+# gazelle:repository_macro external.bzl%_gazelle_repositories
+_gazelle_repositories()
