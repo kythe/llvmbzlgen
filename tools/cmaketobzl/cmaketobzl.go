@@ -321,7 +321,7 @@ func (e *eval) setProjectVersionVars(name string, version []string) {
 	}
 	for i, value := range version {
 		e.v.Set("PROJECT"+varnames[i], value)
-		e.v.Set(name+varnames[1], value)
+		e.v.Set(name+varnames[i], value)
 	}
 }
 
