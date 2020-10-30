@@ -200,7 +200,7 @@ func (e *eval) excludePath(dirpath string) bool {
 
 // dispatch evaluates the next command from cmds and returns a new dispatchFunc for handling the remainder.
 func (e *eval) dispatch(cmds *commandList) (dispatchFunc, error) {
-	name := string(cmds.Head().Name)
+	name := strings.ToLower(string(cmds.Head().Name))
 	if e.shouldPrint(name) {
 		e.PrintCommand(cmds.Head())
 	}
@@ -333,7 +333,7 @@ func (e *eval) exitDirectory(path string) error {
 
 // PrintCommand writes the given command to the configured StarlarkWriter.
 func (e *eval) PrintCommand(command *ast.CommandInvocation) error {
-	return e.w.WriteCommand(string(command.Name), writer.ArgumentLiterals(command.Arguments.Eval(e.v)))
+	return e.w.WriteCommand(strings.ToLower(string(command.Name)), writer.ArgumentLiterals(command.Arguments.Eval(e.v)))
 }
 
 func main() {
