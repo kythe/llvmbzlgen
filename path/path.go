@@ -65,6 +65,9 @@ func (p Path) LessThan(o Path) bool {
 
 // String returns the properly platform-delimited form of the path.
 func (p Path) String() string {
+	if len(p) == 0 {
+		return "."
+	}
 	return filepath.Join([]string(p)...)
 }
 
