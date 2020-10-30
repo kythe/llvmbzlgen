@@ -43,6 +43,11 @@ func (m *Mapping) Pop() {
 	m.vs = m.vs[0 : len(m.vs)-1]
 }
 
+// Depth returns the current mapping depth starting from 0.
+func (m *Mapping) Depth() int {
+	return len(m.vs) - 1
+}
+
 // Set sets a key to a particular value in the current scope.
 // Setting a key to the empty string is equivalent to deleting it, in accordance with CMake semantics.
 func (m *Mapping) Set(key, value string) {
@@ -53,7 +58,7 @@ func (m *Mapping) Set(key, value string) {
 // SetParent sets a key to a particular value in the parent scope.
 // Setting a key to the empty string is equivalent to deleting it, in accordance with CMake semantics.
 func (m *Mapping) SetParent(key, value string) {
-	if len(m.vs) <= 1 {
+	if m.Depth() == 0 {
 		log.Println("Attempt to set ", key, "in PARENT_SCOPE at root")
 	} else {
 		m.vs[len(m.vs)-2][key] = value
