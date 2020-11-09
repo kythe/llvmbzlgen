@@ -36,11 +36,11 @@ func TestStripCommonRoot(t *testing.T) {
 	}
 	tests := []test{
 		// Simple common root.
-		{[]string{"/a/b/c", "/a/b/d", "/a/b/"}, result{"/a/b", []string{"c", "d", ""}}},
+		{[]string{"/a/b/c", "/a/b/d", "/a/b/"}, result{"/a/b", []string{"c", "d", "."}}},
 		// Only whole-segments allowed.
 		{[]string{"a/b/c", "a/bb/c"}, result{"a", []string{"b/c", "bb/c"}}},
 		// No common root.
-		{[]string{"a/b/c", "c/d/e", "d/e/f"}, result{"", []string{"a/b/c", "c/d/e", "d/e/f"}}},
+		{[]string{"a/b/c", "c/d/e", "d/e/f"}, result{".", []string{"a/b/c", "c/d/e", "d/e/f"}}},
 	}
 
 	for _, tc := range tests {
@@ -60,7 +60,7 @@ func TestLongestCommonPrefix(t *testing.T) {
 		{[]string{"a/b/c", "a/b", "a/c/b"}, "a"},
 		{[]string{"/a/b/c", "/a/b", "/a/c/b"}, "/a"},
 		{[]string{"a/bb/c", "a/b", "a/b/c"}, "a"},
-		{[]string{"a/c", "a/b", "b/c"}, ""},
+		{[]string{"a/c", "a/b", "b/c"}, "."},
 	}
 
 	for _, tc := range tests {
