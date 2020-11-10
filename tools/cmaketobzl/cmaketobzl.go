@@ -302,10 +302,8 @@ func (e *eval) setProject(args []string) {
 			case "DESCRIPTION", "HOMEPAGE_URL":
 				e.setProjectVars(name, args[0], args[1])
 				args = args[2:len(args)]
-				break
 			case "LANGUAGES":
-				// Ignore languages.
-				break
+				return
 			}
 		}
 	}
