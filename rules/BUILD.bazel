@@ -4,5 +4,4 @@ package(
 
 exports_files([
     "configure_file.bzl",
-    "llvmbuild.bzl",
 ])
