@@ -126,6 +126,8 @@ func NewEvaluator(w io.Writer, opts ...Option) *eval {
 	for _, o := range opts {
 		o(e)
 	}
+	e.v.Set("CMAKE_BINARY_DIR", e.ProjectRoot())
+	e.v.Set("CMAKE_SOURCE_DIR", e.ProjectRoot())
 	return e
 }
 
@@ -217,6 +219,8 @@ func (e *eval) dispatch(cmds *commandList) (dispatchFunc, error) {
 		e.setVariable(cmds.Head().Arguments.Eval(e.v))
 	case "unset":
 		e.unsetVariable(cmds.Head().Arguments.Eval(e.v))
+	case "project":
+		e.setProject(cmds.Head().Arguments.Eval(e.v))
 	}
 
 	if e.shouldAdd(name) {
@@ -235,7 +239,7 @@ func (e *eval) dispatch(cmds *commandList) (dispatchFunc, error) {
 }
 
 // setVariable sets the value of the variable designated by the remained, following the rules of
-// https://cmake.org/cmake/help/v3.3/command/set.html#command:set
+// https://cmake.org/cmake/help/latest/command/set.html#command:set
 func (e *eval) setVariable(args []string) {
 	if len(args) == 0 {
 		log.Println("Cannot set a variable without a name")
@@ -255,7 +259,7 @@ func (e *eval) setVariable(args []string) {
 }
 
 // unsetVariable unsets the value of the variable designated by the remained, following the rules of
-// https://cmake.org/cmake/help/v3.3/command/set.html#command:unset
+// https://cmake.org/cmake/help/latest/command/set.html#command:unset
 func (e *eval) unsetVariable(args []string) {
 	switch {
 	case len(args) == 0:
@@ -268,6 +272,63 @@ func (e *eval) unsetVariable(args []string) {
 		e.v.SetCache(args[0], "")
 	default:
 		log.Println("Ignoring invalid unset command")
+	}
+}
+
+// setProject sets the name of the project and corresponding CMake variables.
+// See https://cmake.org/cmake/help/latest/command/project.html
+func (e *eval) setProject(args []string) {
+	if len(args) == 0 {
+		log.Fatal("Missing required project name")
+	}
+	// TODO(shahms): code-injection handling.
+	name, args := args[0], args[1:len(args)]
+	e.v.Set("PROJECT_NAME", name)
+	if e.isTopLevel() {
+		e.v.Set("CMAKE_PROJECT_NAME", name)
+	}
+	e.v.Set("PROJECT_SOURCE_DIR", path.Join(e.ProjectRoot(), e.CurrentDirectory()))
+	e.v.Set("PROJECT_BINARY_DIR", path.Join(e.ProjectRoot(), e.CurrentDirectory()))
+	e.v.Set(name+"_SOURCE_DIR", path.Join(e.ProjectRoot(), e.CurrentDirectory()))
+	e.v.Set(name+"_BINARY_DIR", path.Join(e.ProjectRoot(), e.CurrentDirectory()))
+
+	keywords := []string{"VERSION", "DESCRIPTION", "HOMEPAGE_URL", "LANGUAGES"}
+	for _, keyword := range keywords {
+		if args[0] == keyword {
+			switch keyword {
+			case "VERSION":
+				e.setProjectVersionVars(name, strings.Split(args[1], "."))
+				fallthrough
+			case "DESCRIPTION", "HOMEPAGE_URL":
+				e.setProjectVars(name, args[0], args[1])
+				args = args[2:len(args)]
+			case "LANGUAGES":
+				return
+			}
+		}
+	}
+}
+
+// setProjectVersion sets the project version related variables.
+func (e *eval) setProjectVersionVars(name string, version []string) {
+	varnames := []string{
+		"_VERSION_MAJOR",
+		"_VERSION_MINOR",
+		"_VERSION_PATCH",
+		"_VERSION_TWEAK",
+	}
+	for i, value := range version {
+		e.v.Set("PROJECT"+varnames[i], value)
+		e.v.Set(name+varnames[i], value)
+	}
+}
+
+// setProjectVar sets PROJECT_<var>, <name>_<var> and CMAKE_PROJECT_<var> as necessary.
+func (e *eval) setProjectVars(name, suffix, value string) {
+	e.v.Set("PROJECT_"+suffix, value)
+	e.v.Set(name+"_"+suffix, value)
+	if e.isTopLevel() {
+		e.v.Set("CMAKE_PROJECT_"+suffix, value)
 	}
 }
 
@@ -306,6 +367,11 @@ func (e *eval) ProjectRoot() string {
 // CurrentDirectory returns the relative, project-rooted path currently being traversed.
 func (e *eval) CurrentDirectory() string {
 	return path.Join(e.path...)
+}
+
+// isTopLevel returns true in a top-level CMakeLists.txt file.
+func (e *eval) isTopLevel() bool {
+	return e.v.Depth() == 0 || path.Join(e.ProjectRoot(), e.CurrentDirectory()) == e.ProjectRoot()
 }
 
 // enterDirectory pushes a new directory onto the stack, setting up necessary state, etc.
