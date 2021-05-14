@@ -24,7 +24,12 @@ import (
 	"os"
 	"path"
 	"regexp"
+	"strconv"
 	"strings"
+
+	"go/constant"
+	"go/token"
+	"go/types"
 
 	"github.com/kythe/llvmbzlgen/cmakelib/ast"
 	"github.com/kythe/llvmbzlgen/cmakelib/bindings"
@@ -215,6 +220,10 @@ func (e *eval) dispatch(cmds *commandList) (dispatchFunc, error) {
 			name = string(cmds.Head().Name)
 		}
 		return e.dispatch, nil
+	case "string":
+		e.stringCommand(cmds.Head().Arguments.Eval(e.v))
+	case "math":
+		e.mathCommand(cmds.Head().Arguments.Eval(e.v))
 	case "set":
 		e.setVariable(cmds.Head().Arguments.Eval(e.v))
 	case "unset":
@@ -306,6 +315,56 @@ func (e *eval) setProject(args []string) {
 				return
 			}
 		}
+	}
+}
+
+// stringCommand evaluates the arguments as https://cmake.org/cmake/help/latest/command/string.html
+func (e *eval) stringCommand(args []string) {
+	if len(args) == 0 {
+		log.Fatal("Missing required string operation")
+	}
+	switch args[0] {
+	case "FIND":
+		findIndex := strings.Index
+		if len(args) == 5 && args[4] == "REVERSE" {
+			findIndex = strings.LastIndex
+		}
+		e.v.Set(args[3], strconv.Itoa(findIndex(args[1], args[2])))
+	case "SUBSTRING":
+		begin, err := strconv.Atoi(args[2])
+		if err != nil {
+			log.Println("Invalid integer: ", err)
+			begin = 0
+		}
+		length, err := strconv.Atoi(args[3])
+		if err != nil {
+			log.Println("Invalid integer: ", err)
+			length = 0
+		}
+		end := begin + length
+		if length == -1 || end > len(args[1]) {
+			end = len(args[1])
+		}
+		e.v.Set(args[4], args[1][begin:end])
+	case "CONCAT":
+		e.v.Set(args[1], strings.Join(args[2:len(args)], ""))
+	}
+}
+
+// mathCommand evaluates the arguments as https://cmake.org/cmake/help/latest/command/math.html
+func (e *eval) mathCommand(args []string) {
+	switch args[0] {
+	case "EXPR":
+		tv, err := types.Eval(token.NewFileSet(), nil, token.NoPos, args[2])
+		if err != nil {
+			log.Fatal("Unable to evaluate expression: ", err)
+		}
+		value, ok := constant.Int64Val(tv.Value)
+		if !ok {
+			log.Fatal("Unable to evaluate expression as int64")
+		}
+		// TODO(shahms): support OUTPUT_FORMAT
+		e.v.Set(args[1], strconv.FormatInt(value, 10))
 	}
 }
 
